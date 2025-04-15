@@ -50,6 +50,8 @@ $white+         ;   -- White spaces
     \:          {\p s -> TokenColon p}
     \(          {\p s -> TokenLParen p}
     \)          {\p s -> TokenRParen p}
+    \{          {\p s -> TokenLCurlyParen p}
+    \}          {\p s -> TokenRCurlyParen p}
     $digit+     {\p s -> TokenInt p (read s)}
     $alphabet+  {\p s -> TokenVar p s}
 
@@ -98,6 +100,8 @@ data Token =
     TokenColon AlexPosn |
     TokenInt AlexPosn Int |
     TokenVar AlexPosn String |
+    TokenLCurlyParen AlexPosn |
+    TokenRCurlyParen AlexPosn |
     TokenLParen AlexPosn |
     TokenRParen AlexPosn
     deriving (Eq, Show)
@@ -105,5 +109,46 @@ data Token =
 tokenPosn :: Token -> String
 tokenPosn (TokenInt (AlexPn a l c) n) = show l ++ ":" ++ show c
 tokenPosn (TokenVar (AlexPn a l c) x) = show l ++ ":" ++ show c
-tokenPosn (_ (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenSELECT (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenFROM (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenJOIN (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenWHERE (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenINTO (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenON (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenCROSS (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenLEFT (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenRIGHT (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenINNER (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenOUTER (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenUNION (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenINTERSECTION (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenIS (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenIN (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenAS (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenNULL (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenORDER (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenBY (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenDROP (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenUPDATE (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenIF (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenELSE (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenCOUNT (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenSUM (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenAVG (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenMIN (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenMAX (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenROW (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenCOL (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenWildcard (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenEquals (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenEqualsTo (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenPlus (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenMinus (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenLessThan (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenMoreThan (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenColon (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenLParen (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenRParen (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenLCurlyParen (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenRCurlyParen (AlexPn a l c)) = show l ++ ":" ++ show c
 }
