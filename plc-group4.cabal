@@ -25,7 +25,7 @@ source-repository head
 
 library
   exposed-modules:
-      Lib
+      Tokens
   other-modules:
       Paths_plc_group4
   autogen-modules:
@@ -36,6 +36,9 @@ library
   build-depends:
       array
     , base >=4.7 && <5
+    , containers
+    , filepath
+    , text
   default-language: Haskell2010
   build-tool-depends:
     alex:alex,
@@ -53,7 +56,10 @@ executable plc-group4-exe
   build-depends:
       array
     , base >=4.7 && <5
+    , containers
+    , filepath
     , plc-group4
+    , text
   default-language: Haskell2010
 
 test-suite plc-group4-test
@@ -69,5 +75,8 @@ test-suite plc-group4-test
   build-depends:
       array
     , base >=4.7 && <5
+    , containers
+    , filepath
     , plc-group4
+    , text
   default-language: Haskell2010
