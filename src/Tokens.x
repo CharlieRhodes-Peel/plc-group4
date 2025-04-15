@@ -38,6 +38,8 @@ $white+         ;   -- White spaces
     AVG         {\p s -> TokenAVG p}
     MIN         {\p s -> TokenMIN p}
     MAX         {\p s -> TokenMAX p}
+    ROW         {\p s -> TokenROW p}
+    COL         {\p s -> TokenCOL p}
     \*          {\p s -> TokenWildcard p}
     \=          {\p s -> TokenEquals p}
     "=="        {\p s -> TokenEqualsTo p}
@@ -51,3 +53,57 @@ $white+         ;   -- White spaces
     $digit+     {\p s -> TokenInt p (read s)}
     $alphabet+  {\p s -> TokenVar p s}
 
+{
+    -- :: AlexPosn -> String -> Token
+
+data Token = 
+    TokenSELECT AlexPosn |
+    TokenFROM AlexPosn |
+    TokenJOIN AlexPosn |
+    TokenWHERE AlexPosn |
+    TokenINTO AlexPosn |
+    TokenON AlexPosn |
+    TokenCROSS AlexPosn |
+    TokenLEFT AlexPosn |
+    TokenRIGHT AlexPosn |
+    TokenINNER AlexPosn |
+    TokenOUTER AlexPosn |
+    TokenUNION AlexPosn |
+    TokenINTERSECTION AlexPosn |
+    TokenIS AlexPosn |
+    TokenIN AlexPosn |
+    TokenAS AlexPosn |
+    TokenNULL AlexPosn |
+    TokenORDER AlexPosn |
+    TokenBY AlexPosn |
+    TokenDROP AlexPosn |
+    TokenUPDATE AlexPosn |
+    TokenIF AlexPosn |
+    TokenELSE AlexPosn |
+    TokenCOUNT AlexPosn |
+    TokenCOUNT AlexPosn |
+    TokenSUM AlexPosn |
+    TokenAVG AlexPosn |
+    TokenMIN AlexPosn |
+    TokenMAX AlexPosn |
+    TokenROW AlexPosn |
+    TokenCOL AlexPosn |
+    TokenWildcard AlexPosn |
+    TokenEquals AlexPosn |
+    TokenEqualsTo AlexPosn |
+    TokenPlus AlexPosn |
+    TokenMinus AlexPosn |
+    TokenLessThan AlexPosn |
+    TokenMoreThan AlexPosn |
+    TokenColon AlexPosn |
+    TokenInt AlexPosn Int |
+    TokenVar AlexPosn String |
+    TokenLParen AlexPosn |
+    TokenRParen AlexPosn
+    deriving (Eq, Show)
+
+tokenPosn :: Token -> String
+tokenPosn (TokenInt (AlexPn a l c) n) = show l ++ ":" ++ show c
+tokenPosn (TokenVar (AlexPn a l c) x) = show l ++ ":" ++ show c
+tokenPosn (_ (AlexPn a l c)) = show l ++ ":" ++ show c
+}
