@@ -83,7 +83,6 @@ data Token =
     TokenIF AlexPosn |
     TokenELSE AlexPosn |
     TokenCOUNT AlexPosn |
-    TokenCOUNT AlexPosn |
     TokenSUM AlexPosn |
     TokenAVG AlexPosn |
     TokenMIN AlexPosn |
