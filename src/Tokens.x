@@ -10,6 +10,8 @@ $alphabet = [a-zA-Z]
 tokens :-
 $white+         ;   -- White spaces
     "--".*      ;   -- Comments
+
+    -- SQL ish stuff
     SELECT      {\p s -> TokenSELECT p}
     FROM        {\p s -> TokenFROM p}
     JOIN        {\p s -> TokenJOIN p}
@@ -40,19 +42,28 @@ $white+         ;   -- White spaces
     MAX         {\p s -> TokenMAX p}
     ROW         {\p s -> TokenROW p}
     COL         {\p s -> TokenCOL p}
+
+    -- Symbols
     \*          {\p s -> TokenWildcard p}
     \=          {\p s -> TokenEquals p}
     "=="       {\p s -> TokenEqualsTo p}
     "!="       {\p s -> TokenNotEqualsTo p} 
     \+          {\p s -> TokenPlus p}
     \-          {\p s -> TokenMinus p}
+    "<="       {\p s -> TokenLessThanOrEqualTo p}
     \<          {\p s -> TokenLessThan p}
+    ">="      {\p s -> TokenMoreThanOrEqualTo p}
     \>          {\p s -> TokenMoreThan p}
     \:          {\p s -> TokenColon p}
+    "||"        {\p s -> TokenOr p } 
+    "&&"     {\p s -> TokenAnd p }
+    "!"          {\p s -> TokenNot p }
     \(          {\p s -> TokenLParen p}
     \)          {\p s -> TokenRParen p}
     \{          {\p s -> TokenLCurlyParen p}
     \}          {\p s -> TokenRCurlyParen p}
+
+    --Variables and Nums
     $digit+     {\p s -> TokenInt p (read s)}
     $alphabet+  {\p s -> TokenVar p s}
 
@@ -60,6 +71,7 @@ $white+         ;   -- White spaces
     -- :: AlexPosn -> String -> Token
 
 data Token = 
+    -- SQL ish stuff
     TokenSELECT AlexPosn |
     TokenFROM AlexPosn |
     TokenJOIN AlexPosn |
@@ -90,6 +102,8 @@ data Token =
     TokenMAX AlexPosn |
     TokenROW AlexPosn |
     TokenCOL AlexPosn |
+
+    -- Symbols
     TokenWildcard AlexPosn |
     TokenEquals AlexPosn |
     TokenEqualsTo AlexPosn |
@@ -97,14 +111,19 @@ data Token =
     TokenPlus AlexPosn |
     TokenMinus AlexPosn |
     TokenLessThan AlexPosn |
+    TokenLessThanOrEqualTo AlexPosn |
     TokenMoreThan AlexPosn |
+    TokenMoreThanOrEqualTo |
     TokenColon AlexPosn |
-    TokenInt AlexPosn Int |
-    TokenVar AlexPosn String |
+    TokenOr AlexPosn |
+    TokenAnd AlexPosn |
+    TokenNot AlexPosn |
     TokenLCurlyParen AlexPosn |
     TokenRCurlyParen AlexPosn |
     TokenLParen AlexPosn |
-    TokenRParen AlexPosn
+    TokenRParen AlexPosn |
+    TokenInt AlexPosn Int |
+    TokenVar AlexPosn String
     deriving (Eq, Show)
 
 tokenPosn :: Token -> String
@@ -147,8 +166,13 @@ tokenPosn (TokenNotEqualsTo (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenPlus (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenMinus (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenLessThan (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenLessThanOrEqualTo (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenMoreThan (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenMoreThanOrEqualTo (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenColon (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenOr (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenAnd (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenNot (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenLParen (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenRParen (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenLCurlyParen (AlexPn a l c)) = show l ++ ":" ++ show c

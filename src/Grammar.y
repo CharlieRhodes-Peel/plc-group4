@@ -53,9 +53,14 @@ import Tokens
     "!="       { TokenNotEqualsTo _} 
     '+'          { TokenPlus _}
     '-'          { TokenMinus _}
+    "<="      { TokenLessThanOrEqualTo _ }
     '<'          { TokenLessThan _}
+    ">="       { TokenMoreThanOrEqualTo _ }
    '>'          { TokenMoreThan _}
     ':'          { TokenColon _}
+    "||"          { TokenOr _ }
+    "&&"       { TokenAnd _ }
+    '!'             { TokenNot _ }
     '('          { TokenLparen _}
     ')'          { TokenRparen _}
     '{'          { TokenLCurlyparen _}
@@ -108,6 +113,8 @@ OptGroupBy : {- emtpy -}                    { Nothing }
 
 OptOrderBy : {- empty -}            { Nothing }
                         | ORDER BY SortList {Just $3 }
+
+
 
 {
 -- Taken from the labs 
