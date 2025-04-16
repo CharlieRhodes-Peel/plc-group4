@@ -42,7 +42,8 @@ $white+         ;   -- White spaces
     COL         {\p s -> TokenCOL p}
     \*          {\p s -> TokenWildcard p}
     \=          {\p s -> TokenEquals p}
-    "=="        {\p s -> TokenEqualsTo p}
+    "=="       {\p s -> TokenEqualsTo p}
+    "!="       {\p s -> TokenNotEqualsTo p} 
     \+          {\p s -> TokenPlus p}
     \-          {\p s -> TokenMinus p}
     \<          {\p s -> TokenLessThan p}
@@ -92,6 +93,7 @@ data Token =
     TokenWildcard AlexPosn |
     TokenEquals AlexPosn |
     TokenEqualsTo AlexPosn |
+    TokenNotEqualsTo AlexPosn |
     TokenPlus AlexPosn |
     TokenMinus AlexPosn |
     TokenLessThan AlexPosn |
@@ -141,6 +143,7 @@ tokenPosn (TokenCOL (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenWildcard (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenEquals (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenEqualsTo (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenNotEqualsTo (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenPlus (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenMinus (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenLessThan (AlexPn a l c)) = show l ++ ":" ++ show c
