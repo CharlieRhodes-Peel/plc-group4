@@ -36,7 +36,11 @@ import Tokens
     int         { TokenInt _ $$}
     var       { TokenVar _ $$}
 
-%nonassoc var int
+    --True & false
+    "true"  { TokenTrue _}
+    "false" { TokenFalse _}
+
+%nonassoc var int "true" "false"
 %left "||"
 %left "&&"
 %nonassoc "==" "!=" "<=" ">=" '<' '>'
@@ -61,6 +65,8 @@ Condition : Expr CompareOps Expr   {Compare $1 $2 $3}
                   | Condition "&&" Condition    {And $1 $3}
                   | '!' Condition                            {Not $2}
                   | '(' Condition ')'                       { $2 }
+                  | "true"                                      {TrueCond}
+                  | "false"                                     {FalseCond}
 
 CompareOps : "=="            { EqualsTo }
                          | "!="              { NotEqualsTo }
@@ -96,6 +102,8 @@ data Condition = Compare Expr CompareOps Expr
                               | And Condition Condition
                               | Or Condition Condition
                               | Not Condition
+                              | TrueCond
+                              | FalseCond
     deriving Show 
 
 data CompareOps = EqualsTo | NotEqualsTo | LessThanOrEqualTo | LessThan | MoreThanOrEqualTo | MoreThan
