@@ -25,6 +25,7 @@ source-repository head
 
 library
   exposed-modules:
+      Grammar
       Tokens
   other-modules:
       Paths_plc_group4

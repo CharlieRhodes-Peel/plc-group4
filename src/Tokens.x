@@ -113,7 +113,7 @@ data Token =
     TokenLessThan AlexPosn |
     TokenLessThanOrEqualTo AlexPosn |
     TokenMoreThan AlexPosn |
-    TokenMoreThanOrEqualTo |
+    TokenMoreThanOrEqualTo AlexPosn |
     TokenColon AlexPosn |
     TokenOr AlexPosn |
     TokenAnd AlexPosn |

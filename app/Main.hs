@@ -1,4 +1,5 @@
 import Tokens (alexScanTokens)
+import Grammar (parseCalc)
 import System.Environment
 import Control.Exception
 import System.IO
@@ -13,6 +14,8 @@ main'  = do (fileName : _) <- getArgs
             putStrLn ("Lexing: " ++ sourceText)
             let lexedProg = alexScanTokens sourceText
             putStrLn ("lexed as " ++ show lexedProg)
+            let parsedSyntax = parseCalc lexedProg
+            putStrLn ("parsed as: " ++ show parsedSyntax)
 
 noLex :: ErrorCall -> IO ()
 noLex e = do  let err =  show e
