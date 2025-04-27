@@ -25,6 +25,8 @@ source-repository head
 
 library
   exposed-modules:
+      Eval
+      Grammar
       Tokens
   other-modules:
       Paths_plc_group4

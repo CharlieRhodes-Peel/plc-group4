@@ -66,6 +66,8 @@ $white+         ;   -- White spaces
     --Variables and Nums
     $digit+     {\p s -> TokenInt p (read s)}
     $alphabet+  {\p s -> TokenVar p s}
+    "true"      {\p s -> TokenTrue p}
+    "false"     {\p s -> TokenFalse p}
 
 {
     -- :: AlexPosn -> String -> Token
@@ -113,7 +115,7 @@ data Token =
     TokenLessThan AlexPosn |
     TokenLessThanOrEqualTo AlexPosn |
     TokenMoreThan AlexPosn |
-    TokenMoreThanOrEqualTo |
+    TokenMoreThanOrEqualTo AlexPosn |
     TokenColon AlexPosn |
     TokenOr AlexPosn |
     TokenAnd AlexPosn |
@@ -122,6 +124,8 @@ data Token =
     TokenRCurlyParen AlexPosn |
     TokenLParen AlexPosn |
     TokenRParen AlexPosn |
+    TokenTrue AlexPosn |
+    TokenFalse AlexPosn |
     TokenInt AlexPosn Int |
     TokenVar AlexPosn String
     deriving (Eq, Show)
@@ -177,4 +181,6 @@ tokenPosn (TokenLParen (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenRParen (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenLCurlyParen (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenRCurlyParen (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenTrue (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenFalse (AlexPn a l c)) = show l ++ ":" ++ show c
 }
