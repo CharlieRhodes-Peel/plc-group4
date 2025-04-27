@@ -1,5 +1,6 @@
 {
     module Grammar where
+    import Tokens
 }
 
 --Naming convensions:
@@ -9,8 +10,6 @@
 
 
 
-
-import Tokens
 %tokentype { Token }
 %error { parseError }
 %token
@@ -85,6 +84,19 @@ Statement : SelectStatement ';'             {$1}
 
 SelectStatement : SELECT SelectList FROM TableRef OptWhere OptGroupBy OptOrderBy {SELECT $2 $4 $5 $6 $7}
 
+InsertStatement : INSERT INTO TableRef (COL NAMES) VALUES (VALUES) {INSERT $3 $4 $6}
+
+UpdateStatement : UPDATE TableRef SET [COL NAMES = VALUE] ReqWhere {UPDATE $2 $4 $5}
+
+DeleteStatement : DELETE FROM TableRef OptWhere {DELETE $3 $4}
+
+CreateTableStatement : CREATE TABLE TableRef '(' column dataType, ...')' {CREATE $3 $5}
+                     |  CREATE TABLE TableRef SelectStatement {CREATE $3 $4}
+
+
+DropTableStatement : DROP TABLE TableRef {DROP $3}
+
+
 SelectList : '*'                                 { SelectAll }
 --                      | ExprList                    { SelectExprs $1}
 
@@ -107,6 +119,8 @@ OptOuter : OUTER                { () }
 
 OptWhere : {- empty -}         { Nothing }
                    | WHERE Condition {Just $2}
+
+ReqWhere :  WHERE Condition {Just $2}
 
 OptGroupBy : {- emtpy -}                    { Nothing }
                         | GROUP BY ColumnList { Just $3 }
