@@ -68,10 +68,13 @@ SelectStatement : SELECT SelectList FROM TableRef OptWhere {SELECT $2 $4 $5}
 SelectList : '*'                                    { SelectAll }
                       | var ',' SelectList       { SelectRowAnd $1 $3}
                       | var                                 { SelectRow $1}
-                      | ROW '(' int ')' ',' SelectList          { SelectRowNumAnd $3 $6}
+                      | ROW '(' int ')' ',' SelectList           { SelectRowNumAnd $3 $6}
                       | ROW '(' int ')'                         { SelectRowNum $3 }
                       | COL '(' int ')' ',' SelectList { SelectColNumAnd $3 $6}
                       | COL '(' int ')'                           { SelectColNum $3 }
+
+RowOrCol : ROW '(' int ')'                            { RowNum $3 }
+                   | COL '(' int ')'                           { ColNum $3 }
 
 TableRef : var                                     { SimpleTableRef $1 }
 
@@ -80,7 +83,7 @@ OptWhere : {- empty -}                {Nothing}
                    | WHERE Condition      {Just $2}
 
 -- Done in where statements
-Condition : int '=' int                    {Equals $1 $3}
+Condition : RowOrCol '=' RowOrCol                    {Equals $1 $3}
 
 {
 -- Taken from the labs 
@@ -99,13 +102,16 @@ data SelectList = SelectAll
                 | SelectColNum Int | SelectColNumAnd Int SelectList
     deriving (Show)
 
+data RowOrCol = RowNum Int | ColNum Int
+    deriving (Show)
+
 data TableRef = SimpleTableRef String
     deriving (Show)
 
 data WhereStatement = WHERE Condition
     deriving (Show)
 
-data Condition = Equals Int Int
+data Condition = Equals RowOrCol RowOrCol
     deriving (Show)
 
 }
