@@ -55,6 +55,7 @@ $white+         ;   -- White spaces
     ">="      {\p s -> TokenMoreThanOrEqualTo p}
     \>          {\p s -> TokenMoreThan p}
     \:          {\p s -> TokenColon p}
+    \;          {\p s -> TokenSemiColon p }
     "||"        {\p s -> TokenOr p } 
     "&&"     {\p s -> TokenAnd p }
     "!"          {\p s -> TokenNot p }
@@ -62,6 +63,8 @@ $white+         ;   -- White spaces
     \)          {\p s -> TokenRParen p}
     \{          {\p s -> TokenLCurlyParen p}
     \}          {\p s -> TokenRCurlyParen p}
+    \,          {\p s -> TokenComma p }
+
 
     --Variables and Nums
     $digit+     {\p s -> TokenInt p (read s)}
@@ -117,6 +120,7 @@ data Token =
     TokenMoreThan AlexPosn |
     TokenMoreThanOrEqualTo AlexPosn |
     TokenColon AlexPosn |
+    TokenSemiColon AlexPosn |
     TokenOr AlexPosn |
     TokenAnd AlexPosn |
     TokenNot AlexPosn |
@@ -126,6 +130,7 @@ data Token =
     TokenRParen AlexPosn |
     TokenTrue AlexPosn |
     TokenFalse AlexPosn |
+    TokenComma AlexPosn |
     TokenInt AlexPosn Int |
     TokenVar AlexPosn String
     deriving (Eq, Show)
@@ -174,6 +179,7 @@ tokenPosn (TokenLessThanOrEqualTo (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenMoreThan (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenMoreThanOrEqualTo (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenColon (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenSemiColon (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenOr (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenAnd (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenNot (AlexPn a l c)) = show l ++ ":" ++ show c
@@ -181,6 +187,7 @@ tokenPosn (TokenLParen (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenRParen (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenLCurlyParen (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenRCurlyParen (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenComma (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenTrue (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenFalse (AlexPn a l c)) = show l ++ ":" ++ show c
 }
