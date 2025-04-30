@@ -16,12 +16,12 @@ main'  = do (fileName : _) <- getArgs
             putStrLn ("Lexing: " ++ sourceText)
             let lexedProg = alexScanTokens sourceText
             putStrLn ("lexed as " ++ show lexedProg)
-            
             let parsedSyntax = parseCalc lexedProg
             putStrLn ("parsed as: " ++ show parsedSyntax)
 
             --Eval
-            eval parsedSyntax
+            let evaled = eval parsedSyntax []
+            putStrLn ("Evaled to: " ++ show evaled)
 
 noLex :: ErrorCall -> IO ()
 noLex e = do  let err =  show e

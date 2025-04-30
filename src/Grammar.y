@@ -8,86 +8,105 @@ import Tokens
     --Use the syntax defined in %tokens for terminals
     -- Prefix 'Opt' means that this non-terminal is optional to the statement
 
+-- Only testing that binary operations work properly
 %name parseCalc
 %tokentype { Token }
 %error { parseError }
 %token
-    -- SQL ish commands
-    SELECT      { TokenSELECT _}
-    FROM        { TokenFROM _}
-    JOIN        { TokenJOIN _}
-    WHERE       { TokenWHERE _}
-    INTO        { TokenINTO _}
-    ON          { TokenON _}
-    CROSS       { TokenCROSS _}
-    LEFT        { TokenLEFT _}
-    RIGHT       { TokenRIGHT _}
-    INNER       { TokenINNER _}
-    OUTER       { TokenOUTER _}
-    UNION       { TokenUNION _}
-    INTERSECTION{ TokenINTERSECTION _}
-    IS          { TokenIS _}
-    IN          { TokenIN _}
-    AS          { TokenAS _}
-    NULL        { TokenNULL _}
-    ORDER       { TokenORDER _}
-    BY          { TokenBY _}
-    DROP        { TokenDROP _}
-    UPDATE      { TokenUPDATE _}
-    IF          { TokenIF _}
-    ELSE        { TokenELSE _}
-    COUNT       { TokenCOUNT _}
-    SUM         { TokenSUM _}
-    AVG         { TokenAVG _}
-    MIN         { TokenMIN _}
-    MAX         { TokenMAX _}
-    ROW         { TokenROW _}
-    COL         { TokenCOL _}
-
-    -- Symbols
-    '*'          { TokenWildcard _}
+    -- Operators
     '='          { TokenEquals _}
-    ','          { TokenComma _}
-    ';'          { TokenSemiColon _}
-
+    "=="       { TokenEqualsTo _}
+    "!="       { TokenNotEqualsTo _} 
+    '+'          { TokenPlus _}
+    '-'          { TokenMinus _}
+    "<="      { TokenLessThanOrEqualTo _ }
+    '<'          { TokenLessThan _}
+    ">="       { TokenMoreThanOrEqualTo _ }
+    '>'          { TokenMoreThan _}
+    ':'          { TokenColon _}
+    "||"          { TokenOr _ }
+    "&&"       { TokenAnd _ }
+    '!'             { TokenNot _ }
+    '('          { TokenLParen _}
+    ')'          { TokenRParen _}
+    '{'          { TokenLCurlyParen _}
+    '}'          { TokenRCurlyParen _}
+    
     -- Literals
-    int       { TokenInt _ $$}
+    int         { TokenInt _ $$}
     var       { TokenVar _ $$}
 
-%nonassoc var int
-%left SELECT FROM
+    --True & false
+    "true"  { TokenTrue _}
+    "false" { TokenFalse _}
+
+%nonassoc var int "true" "false"
+%left "||"
+%left "&&"
+%nonassoc "==" "!=" "<=" ">=" '<' '>'
+%left '+' '-'
+%nonassoc '!' '(' ')'
+%left LEFT
 %%
 
-Statement : SelectStatement ';'             {$1}
+Start : Expr { ExprResult $1 }
+             | Condition { ConditionResult $1 }
 
--- SELECT STUFF
-SelectStatement : SELECT SelectList FROM TableRef {SELECT $2 $4}
+Expr : Expr '+' Expr {Plus $1 $3}
+          | Expr '-'   Expr  {Minus $1 $3}
+          | '-' Expr               {Negate $2}
+          | '(' Expr ')'           {$2}
+          | var                     {Var $1}
+          | int                      {Int $1}
 
-SelectList : '*'                                    { SelectAll }
-                      | var ',' SelectList       { SelectRowAnd $1 $3}
-                      | var                                 { SelectRow $1}
-                      | int ',' SelectList          { SelectRowNumAnd $1 $3}
-                      | int                         { SelectRowNum $1 }
+-- Conditions
+Condition : Expr CompareOps Expr   {Compare $1 $2 $3}
+                  | Condition "||" Condition       {Or $1 $3 }
+                  | Condition "&&" Condition    {And $1 $3}
+                  | '!' Condition                            {Not $2}
+                  | '(' Condition ')'                       { $2 }
+                  | "true"                                      {TrueCond}
+                  | "false"                                     {FalseCond}
 
+CompareOps : "=="            { EqualsTo }
+                         | "!="              { NotEqualsTo }
+                         | "<="              { LessThanOrEqualTo }
+                         | '<'                  { LessThan }
+                         | ">="              { MoreThanOrEqualTo }
+                         | '>'                  { MoreThan }
 
-TableRef : var                                     { SimpleTableRef $1 }
+--OptNot : '!'                            { Prelude.True }
+--               | {- empty -}            { Prelude.False }
 
+--Variable : var  {Var $1}
+--Integer : int {Int $1}
 
 {
 -- Taken from the labs 
 parseError :: [Token] -> a
-parseError [] = error "Unknown error"
+parseError [] = error "Uknown error"
 parseError (e:rest) = error ("Parse error at (line:column) " ++ tokenPosn (e))
 parseError _ = error "Parse error"
 
---SELECT STUFF
-data SelectStatement  = SELECT SelectList TableRef
-    deriving (Show)
+data CalcResult = ExprResult Expr | ConditionResult Condition
+                deriving Show
 
-data SelectList = SelectAll | SelectRow String | SelectRowAnd String SelectList 
-                | SelectRowNum Int | SelectRowNumAnd Int SelectList
-    deriving (Show)
+data Expr = Plus Expr Expr
+                      |  Minus Expr Expr
+                      |  Negate Expr
+                      | Var String
+                      | Int Int
+    deriving Show 
 
-data TableRef = SimpleTableRef String
-    deriving (Show)
+data Condition = Compare Expr CompareOps Expr
+                              | And Condition Condition
+                              | Or Condition Condition
+                              | Not Condition
+                              | TrueCond
+                              | FalseCond
+    deriving Show 
+
+data CompareOps = EqualsTo | NotEqualsTo | LessThanOrEqualTo | LessThan | MoreThanOrEqualTo | MoreThan
+    deriving Show 
+
 }
