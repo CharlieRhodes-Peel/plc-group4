@@ -31,6 +31,8 @@ $white+         ;   -- White spaces
     NULL        {\p s -> TokenNULL p}
     ORDER       {\p s -> TokenORDER p}
     BY          {\p s -> TokenBY p}
+    ASC         {\p s -> TokenASC p}
+    DSC         {\p s -> TokenDSC p}
     DROP        {\p s -> TokenDROP p}
     UPDATE      {\p s -> TokenUPDATE p}
     IF          {\p s -> TokenIF p}
@@ -96,6 +98,8 @@ data Token =
     TokenNULL AlexPosn |
     TokenORDER AlexPosn |
     TokenBY AlexPosn |
+    TokenASC AlexPosn |
+    TokenDSC AlexPosn |
     TokenDROP AlexPosn |
     TokenUPDATE AlexPosn |
     TokenIF AlexPosn |
@@ -157,6 +161,8 @@ tokenPosn (TokenAS (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenNULL (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenORDER (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenBY (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenASC (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenDSC (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenDROP (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenUPDATE (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenIF (AlexPn a l c)) = show l ++ ":" ++ show c

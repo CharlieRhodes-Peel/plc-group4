@@ -8,25 +8,55 @@ import Data.List
 -- Reads the file from tableRef into "contents"
 -- Select With Nothing Else
 eval :: SelectStatement -> IO ()
-eval (SELECT whatToSelect (SimpleTableRef tableRef) Nothing) = do
+eval (SELECT whatToSelect (SimpleTableRef tableRef) Nothing Nothing) = do
     fileHandle <- openFile (tableRef ++ ".csv") ReadMode
     contents <- hGetContents fileHandle
-    let selectOutput = select contents whatToSelect
+    let contentsCleaned = filter ((\x -> x /= 'r')) contents
+
+    let selectOutput = select contentsCleaned whatToSelect
+
     putStrLn selectOutput
     hClose fileHandle
 
 -- Select With Where statement
-eval (SELECT whatToSelect (SimpleTableRef tableRef) (Just cond)) = do
+eval (SELECT whatToSelect (SimpleTableRef tableRef) (Just cond) Nothing) = do
     fileHandle <- openFile (tableRef ++ ".csv") ReadMode
     contents <- hGetContents fileHandle
+    let contentsCleaned = filter ((\x -> x /= 'r')) contents
 
-    let whereOutput = whereStatement contents cond
+    let whereOutput = whereStatement contentsCleaned cond
     let wheredContents = select contents (intArrayToRowNums whereOutput)
     let removeWeird = filter ((\x -> x /= '\r')) wheredContents
     let splitN = splitBy '\n' removeWeird
     let selectContent = joinWith '\n' [select row whatToSelect | row <- splitN]
 
     putStrLn (show selectContent)
+    hClose fileHandle
+
+eval (SELECT whatToSelect (SimpleTableRef tableRef) Nothing (Just order)) = do
+    fileHandle <- openFile (tableRef ++ ".csv") ReadMode
+    contents <- hGetContents fileHandle
+    let contentsCleaned = filter ((\x -> x /= '\r')) contents
+
+    let selectContent = select contentsCleaned whatToSelect
+    let orderOutput = orderStatement selectContent order
+
+    putStrLn (show orderOutput)
+    hClose fileHandle
+
+eval (SELECT whatToSelect (SimpleTableRef tableRef) (Just cond) (Just order)) = do
+    fileHandle <- openFile (tableRef ++ ".csv") ReadMode
+    contents <- hGetContents fileHandle
+    let contentsCleaned = filter ((\x -> x /= 'r')) contents
+
+    let whereOutput = whereStatement contentsCleaned cond
+    let wheredContents = select contents (intArrayToRowNums whereOutput)
+    let removeWeird = filter ((\x -> x /= '\r')) wheredContents
+    let splitN = splitBy '\n' removeWeird
+    let selectContent = joinWith '\n' [select row whatToSelect | row <- splitN]
+
+    let orderOutput = orderStatement selectContent order
+    putStrLn (show orderOutput)
     hClose fileHandle
 
 -- File contents, what to select, outputs what is needed
@@ -45,8 +75,6 @@ whereStatement contents (Equals v1 v2) =result v1 v2
         result (RowNum n) (ColNum m) = keepMatching (splitBy ',' (getRowFrom contents n)) (splitBy ',' (getColFrom contents m))
         result (ColNum n) (RowNum m) = keepMatching (splitBy ',' (getColFrom contents n)) (splitBy ',' (getRowFrom contents m))
         result (ColNum n) (ColNum m) = keepMatching (splitBy ',' (getColFrom contents n)) (splitBy ',' (getColFrom contents m))
-
-
 
 --                                                                                          || HELPER FUNCS ||
 
@@ -89,6 +117,16 @@ keepMatching xs ys = removeMaybe
         zipped = zip xs ys
         matched = [elemIndex (x,y) zipped | (x,y) <- zipped, x == y]
         removeMaybe = [x | (Just x) <- (filter isJust matched)]
+
+orderStatement contents (ASC) = result
+    where
+        splited = splitBy '\n' contents
+        result = joinWith '\n' (sort splited)
+orderStatement contents (DSC) = result
+    where
+        splited = splitBy '\n' contents
+        result = joinWith '\n' (reverse (sort splited))
+        
 
 
 isJust :: Maybe a -> Bool

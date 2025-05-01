@@ -32,6 +32,8 @@ import Tokens
     NULL        { TokenNULL _}
     ORDER       { TokenORDER _}
     BY          { TokenBY _}
+    ASC         { TokenASC _}
+    DSC         { TokenDSC _}
     DROP        { TokenDROP _}
     UPDATE      { TokenUPDATE _}
     IF          { TokenIF _}
@@ -63,7 +65,7 @@ import Tokens
 Statement : SelectStatement ';'             {$1}
 
 -- SELECT STUFF
-SelectStatement : SELECT SelectList FROM TableRef OptWhere {SELECT $2 $4 $5}
+SelectStatement : SELECT SelectList FROM TableRef OptWhere OptOrderBy {SELECT $2 $4 $5 $6}
 
 SelectList : '*'                                    { SelectAll }
                       | var ',' SelectList       { SelectRowAnd $1 $3}
@@ -82,8 +84,15 @@ OptWhere :: { Maybe Condition }
 OptWhere : {- empty -}                {Nothing} 
                    | WHERE Condition      {Just $2}
 
+OptOrderBy :: { Maybe Order}
+OptOrderBy : {- empty -}            {Nothing}
+                        | ORDER BY Order  {Just $3}
+
 -- Done in where statements
 Condition : RowOrCol '=' RowOrCol                    {Equals $1 $3}
+
+Order : ASC                                 {ASC}
+             | DSC                                 {DSC}
 
 {
 -- Taken from the labs 
@@ -93,7 +102,7 @@ parseError (e:rest) = error ("Parse error at (line:column) " ++ tokenPosn (e))
 parseError _ = error "Parse error"
 
 --SELECT STUFF
-data SelectStatement  = SELECT SelectList TableRef (Maybe Condition)
+data SelectStatement  = SELECT SelectList TableRef (Maybe Condition) (Maybe Order)
     deriving (Show)
 
 data SelectList = SelectAll 
@@ -109,6 +118,9 @@ data TableRef = SimpleTableRef String
     deriving (Show)
 
 data WhereStatement = WHERE Condition
+    deriving (Show)
+
+data Order = ASC | DSC
     deriving (Show)
 
 data Condition = Equals RowOrCol RowOrCol
