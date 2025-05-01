@@ -65,7 +65,7 @@ import Tokens
 Statement : SelectStatement ';'             {$1}
 
 -- SELECT STUFF
-SelectStatement : SELECT SelectList FROM TableRef OptWhere OptOrderBy {SELECT $2 $4 $5 $6}
+SelectStatement : SELECT SelectList FROM FromList OptWhere OptOrderBy {SELECT $2 $4 $5 $6}
 
 SelectList : '*'                                    { SelectAll }
                       | var ',' SelectList       { SelectRowAnd $1 $3}
@@ -78,7 +78,18 @@ SelectList : '*'                                    { SelectAll }
 RowOrCol : ROW '(' int ')'                            { RowNum $3 }
                    | COL '(' int ')'                           { ColNum $3 }
 
+FromList : TableRef OptJoin             {OptJoin $1 $2}
+                  | TableRef                             {SingleFrom $1}
+
 TableRef : var                                     { SimpleTableRef $1 }
+
+OptJoin :: {Maybe JoinStatement}
+OptJoin : {- empty -}                   {Nothing}
+                | JoinStatement         {Just $1}
+
+JoinStatement : CROSS JOIN var      {CrossJoin $3}
+                              | INNER JOIN var       {InnerJoin $3}
+                              | OUTER JOIN var       {OuterJoin $3}
 
 OptWhere :: { Maybe Condition }
 OptWhere : {- empty -}                {Nothing} 
@@ -102,7 +113,7 @@ parseError (e:rest) = error ("Parse error at (line:column) " ++ tokenPosn (e))
 parseError _ = error "Parse error"
 
 --SELECT STUFF
-data SelectStatement  = SELECT SelectList TableRef (Maybe Condition) (Maybe Order)
+data SelectStatement  = SELECT SelectList FromList (Maybe Condition) (Maybe Order)
     deriving (Show)
 
 data SelectList = SelectAll 
@@ -111,10 +122,16 @@ data SelectList = SelectAll
                 | SelectColNum Int | SelectColNumAnd Int SelectList
     deriving (Show)
 
+data FromList = SingleFrom TableRef | OptJoin TableRef (Maybe JoinStatement)
+    deriving (Show)
+
+data JoinStatement = CrossJoin String | InnerJoin String | OuterJoin String
+    deriving (Show)
+
 data RowOrCol = RowNum Int | ColNum Int
     deriving (Show)
 
-data TableRef = SimpleTableRef String
+data TableRef = SimpleTableRef String | TableRefAnd String TableRef
     deriving (Show)
 
 data WhereStatement = WHERE Condition

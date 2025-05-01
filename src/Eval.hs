@@ -8,10 +8,10 @@ import Data.List
 -- Reads the file from tableRef into "contents"
 -- Select With Nothing Else
 eval :: SelectStatement -> IO ()
-eval (SELECT whatToSelect (SimpleTableRef tableRef) Nothing Nothing) = do
+eval (SELECT whatToSelect (SingleFrom (SimpleTableRef tableRef)) Nothing Nothing) = do
     fileHandle <- openFile (tableRef ++ ".csv") ReadMode
     contents <- hGetContents fileHandle
-    let contentsCleaned = filter ((\x -> x /= 'r')) contents
+    let contentsCleaned = filter ((\x -> x /= '\r')) contents
 
     let selectOutput = select contentsCleaned whatToSelect
 
@@ -19,7 +19,7 @@ eval (SELECT whatToSelect (SimpleTableRef tableRef) Nothing Nothing) = do
     hClose fileHandle
 
 -- Select With Where statement
-eval (SELECT whatToSelect (SimpleTableRef tableRef) (Just cond) Nothing) = do
+eval (SELECT whatToSelect (SingleFrom (SimpleTableRef tableRef)) (Just cond) Nothing) = do
     fileHandle <- openFile (tableRef ++ ".csv") ReadMode
     contents <- hGetContents fileHandle
     let contentsCleaned = filter ((\x -> x /= 'r')) contents
@@ -33,7 +33,7 @@ eval (SELECT whatToSelect (SimpleTableRef tableRef) (Just cond) Nothing) = do
     putStrLn (show selectContent)
     hClose fileHandle
 
-eval (SELECT whatToSelect (SimpleTableRef tableRef) Nothing (Just order)) = do
+eval (SELECT whatToSelect (SingleFrom (SimpleTableRef tableRef)) Nothing (Just order)) = do
     fileHandle <- openFile (tableRef ++ ".csv") ReadMode
     contents <- hGetContents fileHandle
     let contentsCleaned = filter ((\x -> x /= '\r')) contents
@@ -44,10 +44,10 @@ eval (SELECT whatToSelect (SimpleTableRef tableRef) Nothing (Just order)) = do
     putStrLn (show orderOutput)
     hClose fileHandle
 
-eval (SELECT whatToSelect (SimpleTableRef tableRef) (Just cond) (Just order)) = do
+eval (SELECT whatToSelect (SingleFrom (SimpleTableRef tableRef)) (Just cond) (Just order)) = do
     fileHandle <- openFile (tableRef ++ ".csv") ReadMode
     contents <- hGetContents fileHandle
-    let contentsCleaned = filter ((\x -> x /= 'r')) contents
+    let contentsCleaned = filter ((\x -> x /= '\r')) contents
 
     let whereOutput = whereStatement contentsCleaned cond
     let wheredContents = select contents (intArrayToRowNums whereOutput)
@@ -58,6 +58,23 @@ eval (SELECT whatToSelect (SimpleTableRef tableRef) (Just cond) (Just order)) = 
     let orderOutput = orderStatement selectContent order
     putStrLn (show orderOutput)
     hClose fileHandle
+
+eval (SELECT whatToSelect (OptJoin (SimpleTableRef tableRef) (Just (CrossJoin tableRef2))) Nothing Nothing) = do
+    fileHandle <- openFile (tableRef ++ ".csv") ReadMode
+    contents1 <- hGetContents fileHandle
+    let cleaned1 = filter ((\x -> x /= '\r')) contents1
+
+    fileHandle2 <- openFile (tableRef2 ++ ".csv") ReadMode
+    contents2 <- hGetContents fileHandle2
+    let cleaned2 = filter ((\x -> x /= '\r')) contents2
+
+    let joined = joinStatement cleaned1 cleaned2
+    let selectOutput = select joined whatToSelect
+
+    putStrLn (selectOutput)
+    hClose fileHandle
+
+
 
 -- File contents, what to select, outputs what is needed
 select :: String -> SelectList -> String
@@ -76,6 +93,8 @@ whereStatement contents (Equals v1 v2) =result v1 v2
         result (ColNum n) (RowNum m) = keepMatching (splitBy ',' (getColFrom contents n)) (splitBy ',' (getRowFrom contents m))
         result (ColNum n) (ColNum m) = keepMatching (splitBy ',' (getColFrom contents n)) (splitBy ',' (getColFrom contents m))
 
+joinStatement :: String -> String -> String
+joinStatement content1 content2 =cartesianProduct content1 content2
 --                                                                                          || HELPER FUNCS ||
 
 -- What to split with, what is getting split, the split
@@ -143,3 +162,11 @@ getNumRows (x:xs) | x == '\n' = 1 + getNumRows xs
 intArrayToRowNums :: [Int] -> SelectList
 intArrayToRowNums (n:[]) = SelectRowNum n
 intArrayToRowNums (n:ns) = SelectRowNumAnd n (intArrayToRowNums ns) 
+
+cartesianProduct :: String -> String -> String
+cartesianProduct content1 content2 = result
+    where
+        splitUp1 = map (splitBy ',') (splitBy '\n' content1)          -- Break down into [row[col]]
+        splitUp2 = map (splitBy ',') (splitBy '\n' content2)         -- Ditto above
+        cartProduct = [rowI ++ rowJ | rowI <- splitUp1, rowJ <- splitUp2]
+        result = joinWith '\n' (map (joinWith ',') cartProduct)    -- Put back together
