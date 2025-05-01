@@ -4,76 +4,60 @@ import Tokens
 import Grammar
 import System.IO
 import Data.List
+import Data.Text (unpack, pack, strip)
 
 -- Reads the file from tableRef into "contents"
 -- Select With Nothing Else
 eval :: SelectStatement -> IO ()
-eval (SELECT whatToSelect (SingleFrom (SimpleTableRef tableRef)) Nothing Nothing) = do
-    fileHandle <- openFile (tableRef ++ ".csv") ReadMode
-    contents <- hGetContents fileHandle
-    let contentsCleaned = filter ((\x -> x /= '\r')) contents
 
-    let selectOutput = select contentsCleaned whatToSelect
+eval (SELECT whatToSelect fromStatement optWhere optOrder) = do
+    --Open First files
+    let filesToOpen = unpackFrom fromStatement
 
-    putStrLn selectOutput
-    hClose fileHandle
+    fileHandle1 <- openFile (fst (filesToOpen!!0) ++ ".csv") ReadMode
+    contents1 <- hGetContents fileHandle1
+    let cleaned1 =cleanInput contents1 
 
--- Select With Where statement
-eval (SELECT whatToSelect (SingleFrom (SimpleTableRef tableRef)) (Just cond) Nothing) = do
-    fileHandle <- openFile (tableRef ++ ".csv") ReadMode
-    contents <- hGetContents fileHandle
-    let contentsCleaned = filter ((\x -> x /= 'r')) contents
+    -- JOINS
+    (afterJoin, fileHandle2) <- if (length filesToOpen > 1)
+        then do
+            let join = (filesToOpen!!1)
+            fileHandle2 <- openFile (fst join ++ ".csv") ReadMode
+            contents2 <- hGetContents fileHandle2
+            let cleanedJoin = cleanInput contents2
+            let joinType = snd join
+            let result = joinStatement joinType cleaned1 cleanedJoin
+            return (result, Just fileHandle2)
+        else do
+            return (cleaned1, Nothing)
+    
+    --WHERE
+    let afterWhere = case optWhere of
+                                            Nothing -> afterJoin
+                                            Just whereCond -> whereStatement afterJoin whereCond whatToSelect
+    
+    --ORDER
+    let afterOrder = case optOrder of
+                                            Nothing -> afterWhere
+                                            Just order -> orderStatement afterWhere order
 
-    let whereOutput = whereStatement contentsCleaned cond
-    let wheredContents = select contents (intArrayToRowNums whereOutput)
-    let removeWeird = filter ((\x -> x /= '\r')) wheredContents
-    let splitN = splitBy '\n' removeWeird
-    let selectContent = joinWith '\n' [select row whatToSelect | row <- splitN]
+    -- 
+    let finalOutput = select afterOrder whatToSelect
+    putStrLn (finalOutput)
 
-    putStrLn (show selectContent)
-    hClose fileHandle
+    -- Cleanup
+    hClose fileHandle1
+    case fileHandle2 of
+        Just handle -> hClose handle
+        Nothing -> return ()
 
-eval (SELECT whatToSelect (SingleFrom (SimpleTableRef tableRef)) Nothing (Just order)) = do
-    fileHandle <- openFile (tableRef ++ ".csv") ReadMode
-    contents <- hGetContents fileHandle
-    let contentsCleaned = filter ((\x -> x /= '\r')) contents
-
-    let selectContent = select contentsCleaned whatToSelect
-    let orderOutput = orderStatement selectContent order
-
-    putStrLn (show orderOutput)
-    hClose fileHandle
-
-eval (SELECT whatToSelect (SingleFrom (SimpleTableRef tableRef)) (Just cond) (Just order)) = do
-    fileHandle <- openFile (tableRef ++ ".csv") ReadMode
-    contents <- hGetContents fileHandle
-    let contentsCleaned = filter ((\x -> x /= '\r')) contents
-
-    let whereOutput = whereStatement contentsCleaned cond
-    let wheredContents = select contents (intArrayToRowNums whereOutput)
-    let removeWeird = filter ((\x -> x /= '\r')) wheredContents
-    let splitN = splitBy '\n' removeWeird
-    let selectContent = joinWith '\n' [select row whatToSelect | row <- splitN]
-
-    let orderOutput = orderStatement selectContent order
-    putStrLn (show orderOutput)
-    hClose fileHandle
-
-eval (SELECT whatToSelect (OptJoin (SimpleTableRef tableRef) (Just (CrossJoin tableRef2))) Nothing Nothing) = do
-    fileHandle <- openFile (tableRef ++ ".csv") ReadMode
-    contents1 <- hGetContents fileHandle
-    let cleaned1 = filter ((\x -> x /= '\r')) contents1
-
-    fileHandle2 <- openFile (tableRef2 ++ ".csv") ReadMode
-    contents2 <- hGetContents fileHandle2
-    let cleaned2 = filter ((\x -> x /= '\r')) contents2
-
-    let joined = joinStatement cleaned1 cleaned2
-    let selectOutput = select joined whatToSelect
-
-    putStrLn (selectOutput)
-    hClose fileHandle
-
+-- Gets a list of all the filenames and what their join type is!
+unpackFrom :: FromList -> [(String, Maybe JoinStatement)]
+unpackFrom (SingleFrom (SimpleTableRef tableRef)) = [(tableRef, Nothing)]
+unpackFrom (OptJoin (SimpleTableRef tableRef) (Just (CrossJoin tableRef2))) = [(tableRef, Nothing), (tableRef2, Just (CrossJoin tableRef2))]
+unpackFrom (OptJoin (SimpleTableRef tableRef) (Just (InnerJoin tableRef2))) = [(tableRef, Nothing), (tableRef2, Just (InnerJoin tableRef2))]
+unpackFrom (OptJoin (SimpleTableRef tableRef) (Just (OuterJoin tableRef2))) = [(tableRef, Nothing), (tableRef2, Just (OuterJoin tableRef2))]
+unpackFrom (OptJoin (SimpleTableRef tableRef) Nothing) = [(tableRef, Nothing)]
 
 
 -- File contents, what to select, outputs what is needed
@@ -84,17 +68,27 @@ select contents (SelectRowNumAnd rowNum next) =(getRowFrom contents rowNum) ++ [
 select contents (SelectColNum colNum) =(getColFrom contents colNum)
 select contents (SelectColNumAnd colNum next) = (getColFrom contents colNum) ++ [','] ++ select contents next
 
+whereStatement :: String -> Condition -> SelectList -> String
+whereStatement contents cond@(Equals v1 v2) whatToSelect = result
+    where
+        matchingRowNums = getMatchingRowNums contents cond
+        wheredContents = select contents (intArrayToRowNums matchingRowNums)
+        cleaned = cleanInput wheredContents
+        splitN = splitBy '\n' cleaned
+        result = joinWith '\n' [select row whatToSelect | row <- splitN]
+
+
 -- Returns list of row nums that match
-whereStatement :: String -> Condition -> [Int]
-whereStatement contents (Equals v1 v2) =result v1 v2
+getMatchingRowNums :: String -> Condition -> [Int]
+getMatchingRowNums contents (Equals v1 v2) =result v1 v2
     where
         result (RowNum n) (RowNum m) = keepMatching (splitBy ',' (getRowFrom contents n)) (splitBy ',' (getRowFrom contents m))
         result (RowNum n) (ColNum m) = keepMatching (splitBy ',' (getRowFrom contents n)) (splitBy ',' (getColFrom contents m))
         result (ColNum n) (RowNum m) = keepMatching (splitBy ',' (getColFrom contents n)) (splitBy ',' (getRowFrom contents m))
         result (ColNum n) (ColNum m) = keepMatching (splitBy ',' (getColFrom contents n)) (splitBy ',' (getColFrom contents m))
 
-joinStatement :: String -> String -> String
-joinStatement content1 content2 =cartesianProduct content1 content2
+joinStatement :: (Maybe JoinStatement) -> String -> String -> String
+joinStatement (Just (CrossJoin _)) content1 content2 =cartesianProduct content1 content2
 --                                                                                          || HELPER FUNCS ||
 
 -- What to split with, what is getting split, the split
@@ -166,7 +160,25 @@ intArrayToRowNums (n:ns) = SelectRowNumAnd n (intArrayToRowNums ns)
 cartesianProduct :: String -> String -> String
 cartesianProduct content1 content2 = result
     where
-        splitUp1 = map (splitBy ',') (splitBy '\n' content1)          -- Break down into [row[col]]
-        splitUp2 = map (splitBy ',') (splitBy '\n' content2)         -- Ditto above
+        splitUp1 = breakInput content1          -- Break down into [row[col]]
+        splitUp2 = breakInput content2         -- Ditto above
         cartProduct = [rowI ++ rowJ | rowI <- splitUp1, rowJ <- splitUp2]
-        result = joinWith '\n' (map (joinWith ',') cartProduct)    -- Put back together
+        result = unbreak cartProduct    -- Put back together
+
+breakInput :: String -> [[String]]
+breakInput input = map (splitBy ',') (splitBy '\n' input)
+
+unbreak :: [[String]] -> String
+unbreak input = joinWith '\n' (map (joinWith ',') input)
+
+-- Removes trailing and leading whitespaces from a string
+trim :: String -> String 
+trim = Data.Text.unpack . Data.Text.strip . Data.Text.pack
+
+cleanInput :: String -> String
+cleanInput input = result
+    where
+        removeR = filter ((\x -> x /= '\r')) input
+        broken = breakInput removeR
+        removeWhiteSpace = [map trim x | x <- broken]
+        result = unbreak removeWhiteSpace
