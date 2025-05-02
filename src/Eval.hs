@@ -77,6 +77,14 @@ whereStatement contents cond@(Equals v1 v2) whatToSelect = result
         splitN = splitBy '\n' cleaned
         result = joinWith '\n' [select row whatToSelect | row <- splitN]
 
+whereStatement contents cond@(NotEquals v1 v2) whatToSelect = result
+    where
+        nonMatchingRowNums = getMatchingRowNums contents cond
+        wheredContents = select contents (intArrayToRowNums nonMatchingRowNums)
+        cleaned = cleanInput wheredContents
+        splitN = splitBy '\n' cleaned
+        result = joinWith '\n' [select row whatToSelect | row <- splitN]
+
 
 -- Returns list of row nums that match
 getMatchingRowNums :: String -> Condition -> [Int]
@@ -86,6 +94,14 @@ getMatchingRowNums contents (Equals v1 v2) =result v1 v2
         result (RowNum n) (ColNum m) = keepMatching (splitBy ',' (getRowFrom contents n)) (splitBy ',' (getColFrom contents m))
         result (ColNum n) (RowNum m) = keepMatching (splitBy ',' (getColFrom contents n)) (splitBy ',' (getRowFrom contents m))
         result (ColNum n) (ColNum m) = keepMatching (splitBy ',' (getColFrom contents n)) (splitBy ',' (getColFrom contents m))
+
+getMatchingRowNums contents (NotEquals v1 v2) = result v1 v2
+    where
+        result (RowNum n) (RowNum m) = keepNonMatching (splitBy ',' (getRowFrom contents n)) (splitBy ',' (getRowFrom contents m))
+        result (RowNum n) (ColNum m) = keepNonMatching (splitBy ',' (getRowFrom contents n)) (splitBy ',' (getColFrom contents m))
+        result (ColNum n) (RowNum m) = keepNonMatching (splitBy ',' (getColFrom contents n)) (splitBy ',' (getRowFrom contents m))
+        result (ColNum n) (ColNum m) = keepNonMatching (splitBy ',' (getColFrom contents n)) (splitBy ',' (getColFrom contents m))
+
 
 joinStatement :: (Maybe JoinStatement) -> String -> String -> String
 joinStatement (Just (CrossJoin _)) content1 content2 =cartesianProduct content1 content2
@@ -131,6 +147,13 @@ keepMatching xs ys = removeMaybe
         matched = [elemIndex (x,y) zipped | (x,y) <- zipped, x == y]
         removeMaybe = [x | (Just x) <- (filter isJust matched)]
 
+keepNonMatching :: [String] -> [String] -> [Int]
+keepNonMatching xs ys = removeMaybe
+    where
+        zipped = zip xs ys
+        matched = [elemIndex (x,y) zipped | (x,y) <- zipped, x /= y]
+        removeMaybe = [x | (Just x) <- (filter isJust matched)]
+
 orderStatement contents (ASC) = result
     where
         splited = splitBy '\n' contents
@@ -156,6 +179,7 @@ getNumRows (x:xs) | x == '\n' = 1 + getNumRows xs
 intArrayToRowNums :: [Int] -> SelectList
 intArrayToRowNums (n:[]) = SelectRowNum n
 intArrayToRowNums (n:ns) = SelectRowNumAnd n (intArrayToRowNums ns) 
+--TODO: Add a SelectNull to Select statements to can pass around that nothing will be selected
 
 cartesianProduct :: String -> String -> String
 cartesianProduct content1 content2 = result

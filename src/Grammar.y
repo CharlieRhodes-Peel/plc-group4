@@ -48,7 +48,8 @@ import Tokens
 
     -- Symbols
     '*'          { TokenWildcard _}
-    '='          { TokenEquals _}
+    "=="          { TokenEqualsTo _}
+    "!="        { TokenNotEqualsTo _}
     ','          { TokenComma _}
     ';'          { TokenSemiColon _}
     '('         {  TokenLParen _}
@@ -100,7 +101,9 @@ OptOrderBy : {- empty -}            {Nothing}
                         | ORDER BY Order  {Just $3}
 
 -- Done in where statements
-Condition : RowOrCol '=' RowOrCol                    {Equals $1 $3}
+Condition : RowOrCol "==" RowOrCol                    {Equals $1 $3}
+                   | RowOrCol "!=" RowOrCol                      {NotEquals $1 $3}
+                   | RowOrCol "!=" var                                 {NotEqualTo $1 $3}
 
 Order : ASC                                 {ASC}
              | DSC                                 {DSC}
@@ -141,6 +144,8 @@ data Order = ASC | DSC
     deriving (Show)
 
 data Condition = Equals RowOrCol RowOrCol
+                                | NotEquals RowOrCol RowOrCol
+                                | NotEqualTo RowOrCol String
     deriving (Show)
 
 }
