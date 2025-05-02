@@ -5,6 +5,7 @@ import Grammar
 import System.IO
 import Data.List
 import Data.Text (unpack, pack, strip)
+import Data.Char (isSpace)
 
 -- Reads the file from tableRef into "contents"
 -- Select With Nothing Else
@@ -66,10 +67,10 @@ select contents (SelectAll) = contents
 select contents (SelectRowNum rowNum) = (getRowFrom contents rowNum)
 select contents (SelectRowNumAnd rowNum next) =(getRowFrom contents rowNum) ++ ['\n'] ++ select contents next
 select contents (SelectColNum colNum) =(getColFrom contents colNum)
-select contents (SelectColNumAnd colNum next) = (getColFrom contents colNum) ++ [','] ++ select contents next
+select contents (SelectColNumAnd colNum next) = zipCols (getColFrom contents colNum) (select contents next)
 
 whereStatement :: String -> Condition -> SelectList -> String
-whereStatement contents cond@(Equals v1 v2) whatToSelect = result
+whereStatement contents cond whatToSelect = result
     where
         matchingRowNums = getMatchingRowNums contents cond
         wheredContents = select contents (intArrayToRowNums matchingRowNums)
@@ -77,30 +78,53 @@ whereStatement contents cond@(Equals v1 v2) whatToSelect = result
         splitN = splitBy '\n' cleaned
         result = joinWith '\n' [select row whatToSelect | row <- splitN]
 
-whereStatement contents cond@(NotEquals v1 v2) whatToSelect = result
+zipCols :: String -> String -> String
+zipCols col1 col2 = result
     where
-        nonMatchingRowNums = getMatchingRowNums contents cond
-        wheredContents = select contents (intArrayToRowNums nonMatchingRowNums)
-        cleaned = cleanInput wheredContents
-        splitN = splitBy '\n' cleaned
-        result = joinWith '\n' [select row whatToSelect | row <- splitN]
+        broken1 = splitBy '\n' col1
+        broken2 = splitBy '\n' col2
+        needsJoining = [l ++ "," ++ r | (l, r) <- (zip broken1 broken2)] 
+        result = joinWith '\n' needsJoining
 
 
 -- Returns list of row nums that match
 getMatchingRowNums :: String -> Condition -> [Int]
+-- == row/col with row/col
 getMatchingRowNums contents (Equals v1 v2) =result v1 v2
     where
-        result (RowNum n) (RowNum m) = keepMatching (splitBy ',' (getRowFrom contents n)) (splitBy ',' (getRowFrom contents m))
-        result (RowNum n) (ColNum m) = keepMatching (splitBy ',' (getRowFrom contents n)) (splitBy ',' (getColFrom contents m))
-        result (ColNum n) (RowNum m) = keepMatching (splitBy ',' (getColFrom contents n)) (splitBy ',' (getRowFrom contents m))
-        result (ColNum n) (ColNum m) = keepMatching (splitBy ',' (getColFrom contents n)) (splitBy ',' (getColFrom contents m))
-
+        result (RowNum n) (RowNum m) = keepThis (==) (splitBy ',' (getRowFrom contents n)) (splitBy ',' (getRowFrom contents m))
+        result (RowNum n) (ColNum m) = keepThis (==) (splitBy ',' (getRowFrom contents n)) (splitBy ',' (getColFrom contents m))
+        result (ColNum n) (RowNum m) = keepThis (==) (splitBy ',' (getColFrom contents n)) (splitBy ',' (getRowFrom contents m))
+        result (ColNum n) (ColNum m) = keepThis (==) (splitBy ',' (getColFrom contents n)) (splitBy ',' (getColFrom contents m))
+-- /= row/col with row/col
 getMatchingRowNums contents (NotEquals v1 v2) = result v1 v2
     where
-        result (RowNum n) (RowNum m) = keepNonMatching (splitBy ',' (getRowFrom contents n)) (splitBy ',' (getRowFrom contents m))
-        result (RowNum n) (ColNum m) = keepNonMatching (splitBy ',' (getRowFrom contents n)) (splitBy ',' (getColFrom contents m))
-        result (ColNum n) (RowNum m) = keepNonMatching (splitBy ',' (getColFrom contents n)) (splitBy ',' (getRowFrom contents m))
-        result (ColNum n) (ColNum m) = keepNonMatching (splitBy ',' (getColFrom contents n)) (splitBy ',' (getColFrom contents m))
+        result (RowNum n) (RowNum m) = keepThis (/=) (splitBy ',' (getRowFrom contents n)) (splitBy ',' (getRowFrom contents m))
+        result (RowNum n) (ColNum m) = keepThis (/=) (splitBy ',' (getRowFrom contents n)) (splitBy ',' (getColFrom contents m))
+        result (ColNum n) (RowNum m) = keepThis (/=) (splitBy ',' (getColFrom contents n)) (splitBy ',' (getRowFrom contents m))
+        result (ColNum n) (ColNum m) = keepThis (/=) (splitBy ',' (getColFrom contents n)) (splitBy ',' (getColFrom contents m))
+
+-- /= row/col with str
+getMatchingRowNums contents (NotEqualTo v1 str) = result v1 str
+    where
+        result (RowNum n) str = keepStringThis (/=) (splitBy ',' (getRowFrom contents n)) str
+        result (ColNum n) str = keepStringThis (/=) (splitBy ',' (getColFrom contents n)) str
+
+-- == row/col with str
+getMatchingRowNums contents (EqualTo v1 str) = result v1 str
+    where
+        result (RowNum n) str = keepStringThis (==) (splitBy ',' (getRowFrom contents n)) str
+        result (ColNum n) str = keepStringThis (==) (splitBy ',' (getColFrom contents n)) str
+
+getMatchingRowNums contents (EqualToNull v1) = result v1
+    where
+        result (RowNum n) = keepStringThis (==) (splitBy ',' (getRowFrom contents n)) ""
+        result (ColNum n) = keepStringThis (==) (splitBy ',' (getColFrom contents n)) ""
+
+getMatchingRowNums contents (NotEqualToNull v1) = result v1
+    where
+        result (RowNum n) = keepStringThis (/=) (splitBy ',' (getRowFrom contents n)) ""
+        result (ColNum n) = keepStringThis (/=) (splitBy ',' (getColFrom contents n)) ""
 
 
 joinStatement :: (Maybe JoinStatement) -> String -> String -> String
@@ -109,24 +133,24 @@ joinStatement (Just (CrossJoin _)) content1 content2 =cartesianProduct content1 
 
 -- What to split with, what is getting split, the split
 splitBy :: Char -> String -> [String]
-splitBy splitChar [] = []
-splitBy splitChar input = 
-    prefix : case suffix of
-        [] -> []
-        (_:rest) -> splitBy splitChar rest
+splitBy _ "" = [""]
+splitBy c s = splitByHelper c s "" []
     where
-        (prefix, suffix) = break (== splitChar) input
+        splitByHelper _ "" acc result = result ++ [acc]
+        splitByHelper c (x:xs) acc result | x ==c = splitByHelper c xs "" (result ++ [acc])
+                                                                         | otherwise = splitByHelper c xs (acc ++ [x]) result
 
 swapRowAndCol :: [String] -> [String]
 swapRowAndCol input = joined
     where 
         splitUp = map (splitBy ',') input
         transposed = transpose splitUp
-        joined = map (joinWith ',') transposed
-
+        joined = map (joinWith '\n') transposed
 
 joinWith :: Char -> [String] -> String
-joinWith c = foldr (\x acc -> x ++ if null acc then "" else [c] ++ acc) ""
+joinWith _ [] = ""
+joinWith _ [x] = x
+joinWith c (x:xs) = x ++ [c] ++ joinWith c xs
 
 getIntFromRowOrCol :: RowOrCol -> Int
 getIntFromRowOrCol (RowNum n) = n
@@ -138,21 +162,18 @@ getRowFrom contents rowNum = (splitBy '\n' contents)!!rowNum
 
 --Ditto above
 getColFrom :: String -> Int -> String
-getColFrom contents colNum = swapRowAndCol((splitBy '\n' contents))!!colNum
+getColFrom contents colNum = (swapRowAndCol((splitBy '\n' contents)))!!colNum
 
-keepMatching :: [String] -> [String] -> [Int]
-keepMatching xs ys = removeMaybe
+keepThis op xs ys = removeMaybe
     where
         zipped = zip xs ys
-        matched = [elemIndex (x,y) zipped | (x,y) <- zipped, x == y]
+        matched =[elemIndex (x,y) zipped | (x,y) <- zipped, (op x y)]
         removeMaybe = [x | (Just x) <- (filter isJust matched)]
 
-keepNonMatching :: [String] -> [String] -> [Int]
-keepNonMatching xs ys = removeMaybe
+keepStringThis op xs str = removeMaybe
     where
-        zipped = zip xs ys
-        matched = [elemIndex (x,y) zipped | (x,y) <- zipped, x /= y]
-        removeMaybe = [x | (Just x) <- (filter isJust matched)]
+        matched = [elemIndex x xs | x <- xs, (op x str)]
+        removeMaybe = [x | (Just x) <- (filter isJust matched) ]
 
 orderStatement contents (ASC) = result
     where
@@ -195,9 +216,11 @@ breakInput input = map (splitBy ',') (splitBy '\n' input)
 unbreak :: [[String]] -> String
 unbreak input = joinWith '\n' (map (joinWith ',') input)
 
--- Removes trailing and leading whitespaces from a string
+-- Taken from: https://stackoverflow.com/questions/6270324/in-haskell-how-do-you-trim-whitespace-from-the-beginning-and-end-of-a-string
+        -- 2/May/2025
 trim :: String -> String 
-trim = Data.Text.unpack . Data.Text.strip . Data.Text.pack
+trim = f . f
+    where f = reverse . dropWhile isSpace
 
 cleanInput :: String -> String
 cleanInput input = result

@@ -66,6 +66,7 @@ $white+         ;   -- White spaces
     \{          {\p s -> TokenLCurlyParen p}
     \}          {\p s -> TokenRCurlyParen p}
     \,          {\p s -> TokenComma p }
+    \"          {\p s -> TokenSpeechMark p}
 
 
     --Variables and Nums
@@ -135,6 +136,7 @@ data Token =
     TokenTrue AlexPosn |
     TokenFalse AlexPosn |
     TokenComma AlexPosn |
+    TokenSpeechMark AlexPosn |
     TokenInt AlexPosn Int |
     TokenVar AlexPosn String
     deriving (Eq, Show)
@@ -193,7 +195,8 @@ tokenPosn (TokenLParen (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenRParen (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenLCurlyParen (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenRCurlyParen (AlexPn a l c)) = show l ++ ":" ++ show c
-tokenPosn (TokenComma (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenComma (AlexPn a l c)) = show l++ ":" ++ show c 
+tokenPosn (TokenSpeechMark (AlexPn a l c)) = show l++ ":" ++ show c 
 tokenPosn (TokenTrue (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenFalse (AlexPn a l c)) = show l ++ ":" ++ show c
 }

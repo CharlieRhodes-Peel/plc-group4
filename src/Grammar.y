@@ -54,6 +54,7 @@ import Tokens
     ';'          { TokenSemiColon _}
     '('         {  TokenLParen _}
     ')'         {  TokenRParen _}
+    '"'         { TokenSpeechMark _}
 
     -- Literals
     int       { TokenInt _ $$}
@@ -102,8 +103,11 @@ OptOrderBy : {- empty -}            {Nothing}
 
 -- Done in where statements
 Condition : RowOrCol "==" RowOrCol                    {Equals $1 $3}
+                   | RowOrCol "==" var                                 {EqualTo $1 $3}
+                   | RowOrCol "==" NULL                                 {EqualToNull $1}
                    | RowOrCol "!=" RowOrCol                      {NotEquals $1 $3}
                    | RowOrCol "!=" var                                 {NotEqualTo $1 $3}
+                   | RowOrCol "!=" NULL                                 {NotEqualToNull $1}
 
 Order : ASC                                 {ASC}
              | DSC                                 {DSC}
@@ -144,8 +148,12 @@ data Order = ASC | DSC
     deriving (Show)
 
 data Condition = Equals RowOrCol RowOrCol
+                                | EqualTo RowOrCol String
+                                | EqualToNull RowOrCol
                                 | NotEquals RowOrCol RowOrCol
                                 | NotEqualTo RowOrCol String
+                                | NotEqualToNull RowOrCol
+
     deriving (Show)
 
 }

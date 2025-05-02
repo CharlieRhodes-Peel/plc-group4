@@ -1,0 +1,1 @@
+SELECT COL(1), COL(0) FROM A;
