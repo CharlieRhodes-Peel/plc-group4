@@ -24,6 +24,7 @@ import Tokens
     RIGHT       { TokenRIGHT _}
     INNER       { TokenINNER _}
     OUTER       { TokenOUTER _}
+    MERGE       { TokenMERGE _}
     UNION       { TokenUNION _}
     INTERSECTION{ TokenINTERSECTION _}
     IS          { TokenIS _}
@@ -56,6 +57,7 @@ import Tokens
     '('         {  TokenLParen _}
     ')'         {  TokenRParen _}
     '"'         { TokenSpeechMark _}
+    '.'           { TokenFullStop _}
 
     -- Literals
     int       { TokenInt _ $$}
@@ -73,15 +75,28 @@ SelectStatement : SELECT SelectList FROM FromList OptWhere OptOrderBy {SELECT $2
 SelectList : '*'                                    { SelectAll }
                       | var ',' SelectList       { SelectRowAnd $1 $3}
                       | var                                 { SelectRow $1}
+
                       | ROW '(' int ')' ',' SelectList               { SelectRowNumAnd $3 $6}
                       | ROW '(' int ')'                                         { SelectRowNum $3 }
                       | COL '(' int ')' ',' SelectList               { SelectColNumAnd $3 $6}
                       | COL '(' int ')'                                         { SelectColNum $3 }
+
+                      | var '.' ROW '(' int ')' ',' SelectList  { SelectRefRowNumAnd $1 $5 $8}
+                      | var '.' ROW '(' int ')'                             { SelectRefRowNum $1 $5}
+                      | var '.' COL '(' int ')' ',' SelectList  { SelectRefColNumAnd $1 $5 $8}
+                      | var '.' COL '(' int ')'                             { SelectRefColNum $1 $5}
+
                       | WITH '(' '"' var '"' ')'                           {SelectWith $4}
                       | WITH '(' '"' var '"' ')' ',' SelectList {SelectWithAnd $4 $8}
 
-RowOrCol : ROW '(' int ')'                            { RowNum $3 }
-                   | COL '(' int ')'                           { ColNum $3 }
+                      | MERGE '(' RowOrCol ',' RowOrCol')'                            {SelectMerge $3 $5}
+                      | MERGE '(' RowOrCol ',' RowOrCol ')' ',' SelectList {SelectMergeAnd $3 $5 $8} 
+
+RowOrCol : ROW '(' int ')'                      {RowNum $3}
+                   | COL '(' int ')'                      {ColNum $3}
+                   | var '.' ROW '(' int ')'          { RefRowNum $1 $5 }
+                   | var '.'  COL '(' int ')'         { RefColNum $1 $5 }
+
 
 FromList : TableRef OptJoin             {OptJoin $1 $2}
                   | TableRef                             {SingleFrom $1}
@@ -93,8 +108,8 @@ OptJoin : {- empty -}                   {Nothing}
                 | JoinStatement         {Just $1}
 
 JoinStatement : CROSS JOIN var      {CrossJoin $3}
-                              | INNER JOIN var       {InnerJoin $3}
-                              | OUTER JOIN var       {OuterJoin $3}
+                              | INNER JOIN var ON Condition       {InnerJoinOn $3 $5}
+                              | OUTER JOIN var ON Condition       {OuterJoinOn $3 $5}
 
 OptWhere :: { Maybe Condition }
 OptWhere : {- empty -}                {Nothing} 
@@ -130,16 +145,23 @@ data SelectList = SelectAll | SelectNull
                 | SelectRow String | SelectRowAnd String SelectList 
                 | SelectRowNum Int | SelectRowNumAnd Int SelectList 
                 | SelectColNum Int | SelectColNumAnd Int SelectList
+
+                | SelectRefRowNum String Int | SelectRefRowNumAnd String Int SelectList
+                | SelectRefColNum String Int | SelectRefColNumAnd String Int SelectList
+                
                 | SelectWith String | SelectWithAnd String SelectList
+                | SelectMerge RowOrCol RowOrCol | SelectMergeAnd RowOrCol RowOrCol SelectList
+
     deriving (Show)
 
 data FromList = SingleFrom TableRef | OptJoin TableRef (Maybe JoinStatement)
     deriving (Show)
 
-data JoinStatement = CrossJoin String | InnerJoin String | OuterJoin String
+data JoinStatement = CrossJoin String | InnerJoinOn String Condition | OuterJoinOn String Condition
     deriving (Show)
 
 data RowOrCol = RowNum Int | ColNum Int
+                              |   RefRowNum String Int | RefColNum String Int
     deriving (Show)
 
 data TableRef = SimpleTableRef String | TableRefAnd String TableRef

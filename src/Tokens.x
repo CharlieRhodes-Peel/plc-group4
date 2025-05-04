@@ -23,6 +23,7 @@ $white+         ;   -- White spaces
     RIGHT       {\p s -> TokenRIGHT p}
     INNER       {\p s -> TokenINNER p}
     OUTER       {\p s -> TokenOUTER p}
+    MERGE       {\p s -> TokenMERGE p}
     UNION       {\p s -> TokenUNION p}
     INTERSECTION{\p s -> TokenINTERSECTION p}
     IS          {\p s -> TokenIS p}
@@ -68,6 +69,7 @@ $white+         ;   -- White spaces
     \}          {\p s -> TokenRCurlyParen p}
     \,          {\p s -> TokenComma p }
     \"          {\p s -> TokenSpeechMark p}
+    \.           {\p s -> TokenFullStop p }
 
 
     --Variables and Nums
@@ -92,6 +94,7 @@ data Token =
     TokenRIGHT AlexPosn |
     TokenINNER AlexPosn |
     TokenOUTER AlexPosn |
+    TokenMERGE AlexPosn |
     TokenUNION AlexPosn |
     TokenINTERSECTION AlexPosn |
     TokenIS AlexPosn |
@@ -139,6 +142,7 @@ data Token =
     TokenFalse AlexPosn |
     TokenComma AlexPosn |
     TokenSpeechMark AlexPosn |
+    TokenFullStop AlexPosn |
     TokenInt AlexPosn Int |
     TokenVar AlexPosn String
     deriving (Eq, Show)
@@ -157,6 +161,7 @@ tokenPosn (TokenLEFT (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenRIGHT (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenINNER (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenOUTER (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenMERGE (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenUNION (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenINTERSECTION (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenIS (AlexPn a l c)) = show l ++ ":" ++ show c
@@ -200,6 +205,7 @@ tokenPosn (TokenLCurlyParen (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenRCurlyParen (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenComma (AlexPn a l c)) = show l++ ":" ++ show c 
 tokenPosn (TokenSpeechMark (AlexPn a l c)) = show l++ ":" ++ show c 
+tokenPosn (TokenFullStop (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenTrue (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenFalse (AlexPn a l c)) = show l ++ ":" ++ show c
 }

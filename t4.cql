@@ -1,1 +1,2 @@
-SELECT COL(0), WITH("foo"), COL(0) FROM A;
+SELECT COL(0), WITH("foo"), COL(0) FROM A
+    ORDER BY ASC;

@@ -59,20 +59,21 @@ eval (SELECT whatToSelect fromStatement optWhere optOrder) = do
 unpackFrom :: FromList -> [(String, Maybe JoinStatement)]
 unpackFrom (SingleFrom (SimpleTableRef tableRef)) = [(tableRef, Nothing)]
 unpackFrom (OptJoin (SimpleTableRef tableRef) (Just (CrossJoin tableRef2))) = [(tableRef, Nothing), (tableRef2, Just (CrossJoin tableRef2))]
-unpackFrom (OptJoin (SimpleTableRef tableRef) (Just (InnerJoin tableRef2))) = [(tableRef, Nothing), (tableRef2, Just (InnerJoin tableRef2))]
-unpackFrom (OptJoin (SimpleTableRef tableRef) (Just (OuterJoin tableRef2))) = [(tableRef, Nothing), (tableRef2, Just (OuterJoin tableRef2))]
 unpackFrom (OptJoin (SimpleTableRef tableRef) Nothing) = [(tableRef, Nothing)]
 
 
 -- File contents, what to select, outputs what is needed
 select :: String -> SelectList -> String
+-- All / Null
 select contents (SelectAll) = contents
 select contents (SelectNull) = ""
+-- Row, Cols, With
 select contents (SelectRowNum rowNum) = (getRowFrom contents rowNum)
-select contents (SelectRowNumAnd rowNum next) =(getRowFrom contents rowNum) ++ ['\n'] ++ select contents next
 select contents (SelectColNum colNum) =(getColFrom contents colNum)
-select contents (SelectColNumAnd colNum next) = zipCols (getColFrom contents colNum) (select contents next)
 select contents (SelectWith str) = joinWith '\n' [str | x <- [0..(getRowNums contents)]]
+-- Additional
+select contents (SelectRowNumAnd rowNum next) =(select contents (SelectRowNum rowNum)) ++ ['\n'] ++ select contents next
+select contents (SelectColNumAnd colNum next) = zipCols (select contents (SelectColNum colNum)) (select contents next)
 select contents (SelectWithAnd str next) = zipCols (select contents (SelectWith str)) (select contents next)
 
 whereStatement :: String -> Condition -> SelectList -> String
