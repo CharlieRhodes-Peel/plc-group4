@@ -60,6 +60,7 @@ unpackFrom :: FromList -> [(String, Maybe JoinStatement)]
 unpackFrom (SingleFrom (SimpleTableRef tableRef)) = [(tableRef, Nothing)]
 unpackFrom (OptJoin (SimpleTableRef tableRef) (Just (CrossJoin tableRef2))) = [(tableRef, Nothing), (tableRef2, Just (CrossJoin tableRef2))]
 unpackFrom (OptJoin (SimpleTableRef tableRef) Nothing) = [(tableRef, Nothing)]
+unpackFrom (OptJoin (SimpleTableRef tableRef) (Just (InnerJoinOn tableRef2 cond))) = [(tableRef, Nothing), (tableRef2, Just (InnerJoinOn tableRef2 cond))]
 
 
 -- File contents, what to select, outputs what is needed
@@ -67,14 +68,17 @@ select :: String -> SelectList -> String
 -- All / Null
 select contents (SelectAll) = contents
 select contents (SelectNull) = ""
--- Row, Cols, With
+-- Row, Cols, With, Merge
 select contents (SelectRowNum rowNum) = (getRowFrom contents rowNum)
 select contents (SelectColNum colNum) =(getColFrom contents colNum)
 select contents (SelectWith str) = joinWith '\n' [str | x <- [0..(getRowNums contents)]]
--- Additional
+select contents (SelectMerge select1 select2) = merge contents select1 select2
+-- Additionals
 select contents (SelectRowNumAnd rowNum next) =(select contents (SelectRowNum rowNum)) ++ ['\n'] ++ select contents next
 select contents (SelectColNumAnd colNum next) = zipCols (select contents (SelectColNum colNum)) (select contents next)
 select contents (SelectWithAnd str next) = zipCols (select contents (SelectWith str)) (select contents next)
+select contents (SelectMergeAnd select1 select2 next) = zipCols (select contents (SelectMerge select1 select2)) (select contents next)
+
 
 whereStatement :: String -> Condition -> SelectList -> String
 whereStatement contents cond whatToSelect = result
@@ -136,6 +140,38 @@ getMatchingRowNums contents (NotEqualToNull v1) = result v1
 
 joinStatement :: (Maybe JoinStatement) -> String -> String -> String
 joinStatement (Just (CrossJoin _)) content1 content2 =cartesianProduct content1 content2
+joinStatement (Just (InnerJoinOn _ cond)) content1 content2 = output
+    where
+        -- I'm going to be honest, god doesn't understand this code and tbh, neither do I. All I know is that it does what I want it to
+        -- It's probably horribly horribly ineffiecent and inflexible but it will finish task 5, when I get to the additional stage I'll add some stuff (no i won't)
+        unpacked = unpackJoinCond cond
+        getColNum (ColNum n) = n
+        table1Col = (getColFrom content1 (getColNum (snd (unpacked!!0)))) 
+        table2Cols = splitBy '\n' (getColFrom content2 (getColNum (snd (unpacked!!1))))
+        
+        matchingRows = [getMatchingRowNums (table1Col) (EqualTo (snd (unpacked!!0)) col) | col <- table2Cols]
+        instructions = map intArrayToRowNums matchingRows
+        instruct = mergeInstructionList instructions
+        table1Correct = select content1 instruct
+        table1CorrectSplit = splitBy '\n' table1Correct
+        addTable2 = joinRows table1CorrectSplit (splitBy '\n' content2)
+        output = joinWith '\n' addTable2
+
+merge :: String -> RowOrCol -> RowOrCol -> String
+merge contents select1 select2 = output
+    where
+        instruct1 = unpackRowOrCol select1
+        instruct2 = unpackRowOrCol select2
+
+        selected1 = select contents instruct1
+        selected2 = select contents instruct2
+        -- This has to be a column lol
+        merged = mergeStrings (splitBy '\n' selected1) (splitBy '\n' selected2)
+        output = joinWith '\n' merged
+        
+
+unpackJoinCond :: Condition -> [(String, RowOrCol)]
+unpackJoinCond (Equals (RefColNum tableRef colNum) (RefColNum tableRef2 colNum2)) = [(tableRef, (ColNum colNum)), (tableRef2, (ColNum colNum2))]
 --                                                                                          || HELPER FUNCS ||
 
 -- What to split with, what is getting split, the split
@@ -147,17 +183,17 @@ splitBy c s = splitByHelper c s "" []
         splitByHelper c (x:xs) acc result | x ==c = splitByHelper c xs "" (result ++ [acc])
                                                                          | otherwise = splitByHelper c xs (acc ++ [x]) result
 
+joinWith :: Char -> [String] -> String
+joinWith _ [] = ""
+joinWith _ [x] = x
+joinWith c (x:xs) = x ++ [c] ++ joinWith c xs
+
 swapRowAndCol :: [String] -> [String]
 swapRowAndCol input = joined
     where 
         splitUp = map (splitBy ',') input
         transposed = transpose splitUp
         joined = map (joinWith '\n') transposed
-
-joinWith :: Char -> [String] -> String
-joinWith _ [] = ""
-joinWith _ [x] = x
-joinWith c (x:xs) = x ++ [c] ++ joinWith c xs
 
 getIntFromRowOrCol :: RowOrCol -> Int
 getIntFromRowOrCol (RowNum n) = n
@@ -193,7 +229,20 @@ orderStatement contents (DSC) = result
         splited = splitBy '\n' contents
         result = joinWith '\n' (reverse (sort splited))
         
+joinRows :: [String] -> [String] -> [String]
+joinRows [] _ = []
+joinRows _ [] = []
+joinRows (x:xs) (y:ys) = (x ++ "," ++ y) : joinRows xs ys
 
+mergeStrings :: [String] -> [String] -> [String]
+mergeStrings [] _ = []
+mergeStrings _ [] = []
+mergeStrings (x:xs) (y:ys) | x =="" = y : (mergeStrings xs ys)
+                                                  | otherwise = x : (mergeStrings xs ys)
+
+unpackRowOrCol :: RowOrCol -> SelectList
+unpackRowOrCol (RowNum n) = (SelectRowNum n)
+unpackRowOrCol (ColNum n) = (SelectColNum n)
 
 isJust :: Maybe a -> Bool
 isJust (Nothing) = False
@@ -205,12 +254,22 @@ getNumRows [] =0
 getNumRows (x:xs) | x == '\n' = 1 + getNumRows xs
                                     | otherwise = getNumRows xs
 
+mergeInstructionList :: [SelectList] -> SelectList
+mergeInstructionList [] = SelectNull
+mergeInstructionList ((SelectColNum n):[]) = (SelectColNum n)
+mergeInstructionList ((SelectColNum n):rest) = (SelectColNumAnd n (mergeInstructionList rest)) 
+mergeInstructionList ((SelectRowNum n):[]) = (SelectRowNum n)
+mergeInstructionList ((SelectRowNum n):rest) = (SelectRowNumAnd n (mergeInstructionList rest)) 
 
 intArrayToRowNums :: [Int] -> SelectList
 intArrayToRowNums [] = SelectNull
 intArrayToRowNums (n:[]) = SelectRowNum n
 intArrayToRowNums (n:ns) = SelectRowNumAnd n (intArrayToRowNums ns) 
---TODO: Add a SelectNull to Select statements to can pass around that nothing will be selected
+
+intArrayToColNums :: [Int] -> SelectList
+intArrayToColNums [] = SelectNull
+intArrayToColNums (n:[]) = SelectColNum n
+intArrayToColNums (n:ns) = SelectColNumAnd n (intArrayToColNums ns)
 
 cartesianProduct :: String -> String -> String
 cartesianProduct content1 content2 = result

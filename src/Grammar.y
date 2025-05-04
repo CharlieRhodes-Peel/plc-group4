@@ -89,7 +89,7 @@ SelectList : '*'                                    { SelectAll }
                       | WITH '(' '"' var '"' ')'                           {SelectWith $4}
                       | WITH '(' '"' var '"' ')' ',' SelectList {SelectWithAnd $4 $8}
 
-                      | MERGE '(' RowOrCol ',' RowOrCol')'                            {SelectMerge $3 $5}
+                      | MERGE '(' RowOrCol ',' RowOrCol ')'                            {SelectMerge $3 $5}
                       | MERGE '(' RowOrCol ',' RowOrCol ')' ',' SelectList {SelectMergeAnd $3 $5 $8} 
 
 RowOrCol : ROW '(' int ')'                      {RowNum $3}
@@ -148,7 +148,7 @@ data SelectList = SelectAll | SelectNull
 
                 | SelectRefRowNum String Int | SelectRefRowNumAnd String Int SelectList
                 | SelectRefColNum String Int | SelectRefColNumAnd String Int SelectList
-                
+
                 | SelectWith String | SelectWithAnd String SelectList
                 | SelectMerge RowOrCol RowOrCol | SelectMergeAnd RowOrCol RowOrCol SelectList
 
