@@ -126,7 +126,8 @@ data SelectStatement  = SELECT SelectList FromList (Maybe Condition) (Maybe Orde
 data SelectList = SelectAll 
                 | SelectRow String | SelectRowAnd String SelectList 
                 | SelectRowNum Int | SelectRowNumAnd Int SelectList 
-                | SelectColNum Int | SelectColNumAnd Int SelectList
+                | SelectColNum Int | SelectColNumAnd Int SelectList 
+                | SelectNull
     deriving (Show)
 
 data FromList = SingleFrom TableRef | OptJoin TableRef (Maybe JoinStatement)

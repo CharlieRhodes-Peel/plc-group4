@@ -35,16 +35,19 @@ eval (SELECT whatToSelect fromStatement optWhere optOrder) = do
     --WHERE
     let afterWhere = case optWhere of
                                             Nothing -> afterJoin
-                                            Just whereCond -> whereStatement afterJoin whereCond whatToSelect
+                                            Just whereCond -> whereStatement afterJoin whereCond whatToSelect 
     
     --ORDER
     let afterOrder = case optOrder of
                                             Nothing -> afterWhere
                                             Just order -> orderStatement afterWhere order
 
-    -- 
-    let finalOutput = select afterOrder whatToSelect
-    putStrLn (finalOutput)
+    -- Essentially afterWhere includes the select statement in its process, so if the where statement has affected the code then we don't need to select
+    if (afterWhere /= afterJoin) then 
+        putStrLn (afterOrder)
+    else
+        let finalOutput = select afterOrder whatToSelect
+        in putStrLn (finalOutput)
 
     -- Cleanup
     hClose fileHandle1
@@ -64,6 +67,7 @@ unpackFrom (OptJoin (SimpleTableRef tableRef) Nothing) = [(tableRef, Nothing)]
 -- File contents, what to select, outputs what is needed
 select :: String -> SelectList -> String
 select contents (SelectAll) = contents
+select contents (SelectNull) = ""
 select contents (SelectRowNum rowNum) = (getRowFrom contents rowNum)
 select contents (SelectRowNumAnd rowNum next) =(getRowFrom contents rowNum) ++ ['\n'] ++ select contents next
 select contents (SelectColNum colNum) =(getColFrom contents colNum)
@@ -119,12 +123,12 @@ getMatchingRowNums contents (EqualTo v1 str) = result v1 str
 getMatchingRowNums contents (EqualToNull v1) = result v1
     where
         result (RowNum n) = keepStringThis (==) (splitBy ',' (getRowFrom contents n)) ""
-        result (ColNum n) = keepStringThis (==) (splitBy ',' (getColFrom contents n)) ""
+        result (ColNum n) = keepStringThis (==) (splitBy '\n' (getColFrom contents n)) ""
 
 getMatchingRowNums contents (NotEqualToNull v1) = result v1
     where
         result (RowNum n) = keepStringThis (/=) (splitBy ',' (getRowFrom contents n)) ""
-        result (ColNum n) = keepStringThis (/=) (splitBy ',' (getColFrom contents n)) ""
+        result (ColNum n) = keepStringThis (/=) (splitBy '\n' (getColFrom contents n)) ""
 
 
 joinStatement :: (Maybe JoinStatement) -> String -> String -> String
@@ -198,6 +202,7 @@ getNumRows (x:xs) | x == '\n' = 1 + getNumRows xs
 
 
 intArrayToRowNums :: [Int] -> SelectList
+intArrayToRowNums [] = SelectNull
 intArrayToRowNums (n:[]) = SelectRowNum n
 intArrayToRowNums (n:ns) = SelectRowNumAnd n (intArrayToRowNums ns) 
 --TODO: Add a SelectNull to Select statements to can pass around that nothing will be selected

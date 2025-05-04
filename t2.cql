@@ -1,0 +1,3 @@
+SELECT COL(2), COL(0) FROM A
+    WHERE COL(0) == COL(1)
+    ORDER BY ASC;
