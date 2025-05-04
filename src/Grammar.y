@@ -45,6 +45,7 @@ import Tokens
     MAX         { TokenMAX _}
     ROW         { TokenROW _}
     COL         { TokenCOL _}
+    WITH         { TokenWITH _}
 
     -- Symbols
     '*'          { TokenWildcard _}
@@ -72,10 +73,12 @@ SelectStatement : SELECT SelectList FROM FromList OptWhere OptOrderBy {SELECT $2
 SelectList : '*'                                    { SelectAll }
                       | var ',' SelectList       { SelectRowAnd $1 $3}
                       | var                                 { SelectRow $1}
-                      | ROW '(' int ')' ',' SelectList           { SelectRowNumAnd $3 $6}
-                      | ROW '(' int ')'                         { SelectRowNum $3 }
-                      | COL '(' int ')' ',' SelectList { SelectColNumAnd $3 $6}
-                      | COL '(' int ')'                           { SelectColNum $3 }
+                      | ROW '(' int ')' ',' SelectList               { SelectRowNumAnd $3 $6}
+                      | ROW '(' int ')'                                         { SelectRowNum $3 }
+                      | COL '(' int ')' ',' SelectList               { SelectColNumAnd $3 $6}
+                      | COL '(' int ')'                                         { SelectColNum $3 }
+                      | WITH '(' '"' var '"' ')'                           {SelectWith $4}
+                      | WITH '(' '"' var '"' ')' ',' SelectList {SelectWithAnd $4 $8}
 
 RowOrCol : ROW '(' int ')'                            { RowNum $3 }
                    | COL '(' int ')'                           { ColNum $3 }
@@ -123,11 +126,11 @@ parseError _ = error "Parse error"
 data SelectStatement  = SELECT SelectList FromList (Maybe Condition) (Maybe Order)
     deriving (Show)
 
-data SelectList = SelectAll 
+data SelectList = SelectAll | SelectNull
                 | SelectRow String | SelectRowAnd String SelectList 
                 | SelectRowNum Int | SelectRowNumAnd Int SelectList 
-                | SelectColNum Int | SelectColNumAnd Int SelectList 
-                | SelectNull
+                | SelectColNum Int | SelectColNumAnd Int SelectList
+                | SelectWith String | SelectWithAnd String SelectList
     deriving (Show)
 
 data FromList = SingleFrom TableRef | OptJoin TableRef (Maybe JoinStatement)

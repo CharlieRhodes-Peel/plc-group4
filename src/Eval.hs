@@ -72,6 +72,8 @@ select contents (SelectRowNum rowNum) = (getRowFrom contents rowNum)
 select contents (SelectRowNumAnd rowNum next) =(getRowFrom contents rowNum) ++ ['\n'] ++ select contents next
 select contents (SelectColNum colNum) =(getColFrom contents colNum)
 select contents (SelectColNumAnd colNum next) = zipCols (getColFrom contents colNum) (select contents next)
+select contents (SelectWith str) = joinWith '\n' [str | x <- [0..(getRowNums contents)]]
+select contents (SelectWithAnd str next) = zipCols (select contents (SelectWith str)) (select contents next)
 
 whereStatement :: String -> Condition -> SelectList -> String
 whereStatement contents cond whatToSelect = result
@@ -167,6 +169,9 @@ getRowFrom contents rowNum = (splitBy '\n' contents)!!rowNum
 --Ditto above
 getColFrom :: String -> Int -> String
 getColFrom contents colNum = (swapRowAndCol((splitBy '\n' contents)))!!colNum
+
+getRowNums :: String -> Int
+getRowNums contents = length (splitBy '\n' contents)
 
 keepThis op xs ys = matched
     where

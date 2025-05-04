@@ -44,6 +44,7 @@ $white+         ;   -- White spaces
     MAX         {\p s -> TokenMAX p}
     ROW         {\p s -> TokenROW p}
     COL         {\p s -> TokenCOL p}
+    WITH         {\p s -> TokenWITH p}
 
     -- Symbols
     \*          {\p s -> TokenWildcard p}
@@ -112,6 +113,7 @@ data Token =
     TokenMAX AlexPosn |
     TokenROW AlexPosn |
     TokenCOL AlexPosn |
+    TokenWITH AlexPosn |
 
     -- Symbols
     TokenWildcard AlexPosn |
@@ -176,6 +178,7 @@ tokenPosn (TokenMIN (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenMAX (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenROW (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenCOL (AlexPn a l c)) = show l ++ ":" ++ show c
+tokenPosn (TokenWITH (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenWildcard (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenEquals (AlexPn a l c)) = show l ++ ":" ++ show c
 tokenPosn (TokenEqualsTo (AlexPn a l c)) = show l ++ ":" ++ show c
