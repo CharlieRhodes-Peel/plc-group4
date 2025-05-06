@@ -126,18 +126,24 @@ OptOrderBy : {- empty -}            {Nothing}
 -- Done in where statements
 Condition : RowOrCol "==" RowOrCol                    {Equals $1 $3}
                    | RowOrCol "==" var                                 {EqualTo $1 $3}
+                   | RowOrCol "==" int                                     {EqualToNum $1 $3}
                    | RowOrCol "==" NULL                                 {EqualToNull $1}
                    | RowOrCol "!=" RowOrCol                      {NotEquals $1 $3}
                    | RowOrCol "!=" var                                 {NotEqualTo $1 $3}
+                   | RowOrCol "!=" int                                     {NotEqualToNum $1 $3}
                    | RowOrCol "!=" NULL                                 {NotEqualToNull $1}
                    | RowOrCol '>' RowOrCol                          {MoreThans $1 $3}
                    | RowOrCol '>' var                                       {MoreThan $1 $3}
+                   | RowOrCol '>' int                                     {MoreThanNum $1 $3}
                    | RowOrCol '<' RowOrCol                              {LessThans $1 $3}
                    | RowOrCol '<' var                                         {LessThan $1 $3}
+                   | RowOrCol '<' int                                     {LessThanNum $1 $3}
                    | RowOrCol ">=" RowOrCol                         {MoreOrEqualThans $1 $3}
                    | RowOrCol ">=" var                                      {MoreOrEqualThan $1 $3}
+                   | RowOrCol ">=" int                                      {MoreOrEqualThanNum $1 $3}
                    | RowOrCol "<=" RowOrCol                           {LessOrEqualThans $1 $3}
                    | RowOrCol "<=" var                                      {LessOrEqualThan $1 $3}
+                   | RowOrCol "<=" int                                      {LessOrEqualThanNum $1 $3}
 
 Order : ASC                                 {ASC}
              | DSC                                 {DSC}
@@ -186,18 +192,29 @@ data Order = ASC | DSC
 
 data Condition = Equals RowOrCol RowOrCol
                                 | EqualTo RowOrCol String
+                                | EqualToNum RowOrCol Int
                                 | EqualToNull RowOrCol
+
                                 | NotEquals RowOrCol RowOrCol
                                 | NotEqualTo RowOrCol String
+                                | NotEqualToNum RowOrCol Int
                                 | NotEqualToNull RowOrCol
+
                                 | MoreThans RowOrCol RowOrCol
                                 | MoreThan RowOrCol String
+                                | MoreThanNum RowOrCol Int
+
                                 | LessThans RowOrCol RowOrCol
                                 | LessThan RowOrCol String
+                                | LessThanNum RowOrCol Int
+
                                 | MoreOrEqualThans RowOrCol RowOrCol
                                 | MoreOrEqualThan RowOrCol String
+                                | MoreOrEqualThanNum RowOrCol Int
+
                                 | LessOrEqualThans RowOrCol RowOrCol
                                 | LessOrEqualThan RowOrCol String
+                                | LessOrEqualThanNum RowOrCol Int
 
     deriving (Show)
 

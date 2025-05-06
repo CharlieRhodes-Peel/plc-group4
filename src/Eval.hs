@@ -115,7 +115,13 @@ getMatchingRowNums contents (MoreThan v1 str) = getMatchingRowNumsOneRow content
 getMatchingRowNums contents (LessThan v1 str) = getMatchingRowNumsOneRow contents (<) v1 str
 getMatchingRowNums contents (MoreOrEqualThan v1 str) = getMatchingRowNumsOneRow contents (>=) v1 str
 getMatchingRowNums contents (LessOrEqualThan v1 str) = getMatchingRowNumsOneRow contents (<=) v1 str
-
+-- Nums
+getMatchingRowNums contents (EqualToNum v1 n) = getMatchingRowNumsOneRow contents (==) v1 (show n)
+getMatchingRowNums contents (NotEqualToNum v1 n) = getMatchingRowNumsOneRow contents (/=) v1 (show n)
+getMatchingRowNums contents (MoreThanNum v1 n) = getMatchingRowNumsOneRow contents (>) v1 (show n)
+getMatchingRowNums contents (LessThanNum v1 n) = getMatchingRowNumsOneRow contents (<) v1 (show n)
+getMatchingRowNums contents (MoreOrEqualThanNum v1 n) = getMatchingRowNumsOneRow contents (>=) v1 (show n)
+getMatchingRowNums contents (LessOrEqualThanNum v1 n) = getMatchingRowNumsOneRow contents (<=) v1 (show n)
 
 -- Helper function for getMatchingRowNums
 getMatchingRowNumsTwoRows :: String -> (String -> String -> Bool) -> RowOrCol -> RowOrCol -> [Int]
