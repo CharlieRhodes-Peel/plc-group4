@@ -35,7 +35,7 @@ eval (SELECT whatToSelect fromStatement optWhere optOrder) = do
     --WHERE
     let afterWhere = case optWhere of
                                             Nothing -> afterJoin
-                                            Just whereCond -> whereStatement afterJoin whereCond whatToSelect 
+                                            Just whereCond -> whereStatement afterJoin whereCond whatToSelect
     
     --ORDER
     let afterOrder = case optOrder of
@@ -100,42 +100,38 @@ zipCols col1 col2 = result
 
 -- Returns list of row nums that match
 getMatchingRowNums :: String -> Condition -> [Int]
--- == row/col with row/col
-getMatchingRowNums contents (Equals v1 v2) =result v1 v2
-    where
-        result (RowNum n) (RowNum m) = keepThis (==) (splitBy ',' (getRowFrom contents n)) (splitBy ',' (getRowFrom contents m))
-        result (RowNum n) (ColNum m) = keepThis (==) (splitBy ',' (getRowFrom contents n)) (splitBy '\n' (getColFrom contents m))
-        result (ColNum n) (RowNum m) = keepThis (==) (splitBy '\n' (getColFrom contents n)) (splitBy ',' (getRowFrom contents m))
-        result (ColNum n) (ColNum m) = keepThis (==) (splitBy '\n' (getColFrom contents n)) (splitBy '\n' (getColFrom contents m))
--- /= row/col with row/col
-getMatchingRowNums contents (NotEquals v1 v2) = result v1 v2
-    where
-        result (RowNum n) (RowNum m) = keepThis (/=) (splitBy ',' (getRowFrom contents n)) (splitBy ',' (getRowFrom contents m))
-        result (RowNum n) (ColNum m) = keepThis (/=) (splitBy ',' (getRowFrom contents n)) (splitBy '\n' (getColFrom contents m))
-        result (ColNum n) (RowNum m) = keepThis (/=) (splitBy '\n' (getColFrom contents n)) (splitBy ',' (getRowFrom contents m))
-        result (ColNum n) (ColNum m) = keepThis (/=) (splitBy '\n' (getColFrom contents n)) (splitBy '\n' (getColFrom contents m))
+getMatchingRowNums contents (Equals v1 v2) =getMatchingRowNumsTwoRows contents (==) v1 v2
+getMatchingRowNums contents (NotEquals v1 v2) = getMatchingRowNumsTwoRows contents (/=) v1 v2
+getMatchingRowNums contents (MoreThans v1 v2) = getMatchingRowNumsTwoRows contents (>) v1 v2
+getMatchingRowNums contents (LessThans v1 v2) = getMatchingRowNumsTwoRows contents (<) v1 v2
+getMatchingRowNums contents (MoreOrEqualThans v1 v2) = getMatchingRowNumsTwoRows contents (>=) v1 v2
+getMatchingRowNums contents (LessOrEqualThans v1 v2) = getMatchingRowNumsTwoRows contents (<=) v1 v2
+-- Only 1 row/ol
+getMatchingRowNums contents (EqualTo v1 str) = getMatchingRowNumsOneRow contents (==) v1 str
+getMatchingRowNums contents (EqualToNull v1) = getMatchingRowNumsOneRow contents (==) v1 ""
+getMatchingRowNums contents (NotEqualTo v1 str) = getMatchingRowNumsOneRow contents (/=) v1 str
+getMatchingRowNums contents (NotEqualToNull v1) = getMatchingRowNumsOneRow contents (/=) v1 ""
+getMatchingRowNums contents (MoreThan v1 str) = getMatchingRowNumsOneRow contents (>) v1 str
+getMatchingRowNums contents (LessThan v1 str) = getMatchingRowNumsOneRow contents (<) v1 str
+getMatchingRowNums contents (MoreOrEqualThan v1 str) = getMatchingRowNumsOneRow contents (>=) v1 str
+getMatchingRowNums contents (LessOrEqualThan v1 str) = getMatchingRowNumsOneRow contents (<=) v1 str
 
--- /= row/col with str
-getMatchingRowNums contents (NotEqualTo v1 str) = result v1 str
-    where
-        result (RowNum n) str = keepStringThis (/=) (splitBy ',' (getRowFrom contents n)) str
-        result (ColNum n) str = keepStringThis (/=) (splitBy '\n' (getColFrom contents n)) str
 
--- == row/col with str
-getMatchingRowNums contents (EqualTo v1 str) = result v1 str
+-- Helper function for getMatchingRowNums
+getMatchingRowNumsTwoRows :: String -> (String -> String -> Bool) -> RowOrCol -> RowOrCol -> [Int]
+getMatchingRowNumsTwoRows contents op v1 v2 = result v1 v2
     where
-        result (RowNum n) str = keepStringThis (==) (splitBy ',' (getRowFrom contents n)) str
-        result (ColNum n) str = keepStringThis (==) (splitBy '\n' (getColFrom contents n)) str
+        result (RowNum n) (RowNum m) = keepThis op (splitBy ',' (getRowFrom contents n)) (splitBy ',' (getRowFrom contents m))
+        result (RowNum n) (ColNum m) = keepThis op (splitBy ',' (getRowFrom contents n)) (splitBy '\n' (getColFrom contents m))
+        result (ColNum n) (RowNum m) = keepThis op (splitBy '\n' (getColFrom contents n)) (splitBy ',' (getRowFrom contents m))
+        result (ColNum n) (ColNum m) = keepThis op (splitBy '\n' (getColFrom contents n)) (splitBy '\n' (getColFrom contents m))
 
-getMatchingRowNums contents (EqualToNull v1) = result v1
+--Helper function for getMatchingRowNums
+getMatchingRowNumsOneRow :: String -> (String -> String -> Bool) -> RowOrCol -> String -> [Int]
+getMatchingRowNumsOneRow contents op v1 str = result v1 str
     where
-        result (RowNum n) = keepStringThis (==) (splitBy ',' (getRowFrom contents n)) ""
-        result (ColNum n) = keepStringThis (==) (splitBy '\n' (getColFrom contents n)) ""
-
-getMatchingRowNums contents (NotEqualToNull v1) = result v1
-    where
-        result (RowNum n) = keepStringThis (/=) (splitBy ',' (getRowFrom contents n)) ""
-        result (ColNum n) = keepStringThis (/=) (splitBy '\n' (getColFrom contents n)) ""
+        result (RowNum n) str = keepStringThis op (splitBy ',' (getRowFrom contents n)) str
+        result (ColNum n) str = keepStringThis op (splitBy '\n' (getColFrom contents n)) str
 
 
 joinStatement :: (Maybe JoinStatement) -> String -> String -> String
@@ -210,11 +206,13 @@ getColFrom contents colNum = (swapRowAndCol((splitBy '\n' contents)))!!colNum
 getRowNums :: String -> Int
 getRowNums contents = length (splitBy '\n' contents)
 
+keepThis :: (String -> String -> Bool) -> [String] -> [String] -> [Int]
 keepThis op xs ys = matched
     where
         zipped = zip xs ys
         matched = [i | (i, (x,y)) <- zip [0..] zipped, (op x y)]
 
+keepStringThis :: (String -> String -> Bool) -> [String] -> String -> [Int]
 keepStringThis op xs str = removeMaybe
     where
         matched = [elemIndex x xs | x <- xs, (op x str)]

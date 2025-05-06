@@ -52,6 +52,10 @@ import Tokens
     '*'          { TokenWildcard _}
     "=="          { TokenEqualsTo _}
     "!="        { TokenNotEqualsTo _}
+    '>'             { TokenMoreThan _}
+    ">="          { TokenMoreThanOrEqualTo _}
+    '<'             { TokenLessThan _}
+    "<="        { TokenLessThanOrEqualTo _}
     ','          { TokenComma _}
     ';'          { TokenSemiColon _}
     '('         {  TokenLParen _}
@@ -126,6 +130,14 @@ Condition : RowOrCol "==" RowOrCol                    {Equals $1 $3}
                    | RowOrCol "!=" RowOrCol                      {NotEquals $1 $3}
                    | RowOrCol "!=" var                                 {NotEqualTo $1 $3}
                    | RowOrCol "!=" NULL                                 {NotEqualToNull $1}
+                   | RowOrCol '>' RowOrCol                          {MoreThans $1 $3}
+                   | RowOrCol '>' var                                       {MoreThan $1 $3}
+                   | RowOrCol '<' RowOrCol                              {LessThans $1 $3}
+                   | RowOrCol '<' var                                         {LessThan $1 $3}
+                   | RowOrCol ">=" RowOrCol                         {MoreOrEqualThans $1 $3}
+                   | RowOrCol ">=" var                                      {MoreOrEqualThan $1 $3}
+                   | RowOrCol "<=" RowOrCol                           {LessOrEqualThans $1 $3}
+                   | RowOrCol "<=" var                                      {LessOrEqualThan $1 $3}
 
 Order : ASC                                 {ASC}
              | DSC                                 {DSC}
@@ -151,7 +163,6 @@ data SelectList = SelectAll | SelectNull
 
                 | SelectWith String | SelectWithAnd String SelectList
                 | SelectMerge RowOrCol RowOrCol | SelectMergeAnd RowOrCol RowOrCol SelectList
-
     deriving (Show)
 
 data FromList = SingleFrom TableRef | OptJoin TableRef (Maybe JoinStatement)
@@ -179,6 +190,14 @@ data Condition = Equals RowOrCol RowOrCol
                                 | NotEquals RowOrCol RowOrCol
                                 | NotEqualTo RowOrCol String
                                 | NotEqualToNull RowOrCol
+                                | MoreThans RowOrCol RowOrCol
+                                | MoreThan RowOrCol String
+                                | LessThans RowOrCol RowOrCol
+                                | LessThan RowOrCol String
+                                | MoreOrEqualThans RowOrCol RowOrCol
+                                | MoreOrEqualThan RowOrCol String
+                                | LessOrEqualThans RowOrCol RowOrCol
+                                | LessOrEqualThan RowOrCol String
 
     deriving (Show)
 
