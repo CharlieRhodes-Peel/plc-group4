@@ -16,6 +16,7 @@ eval (SELECT whatToSelect fromStatement optWhere optOrder) = do
     --Open First files
     let filesToOpen = unpackFrom fromStatement
 
+    -- I very much understand this code is ugly as all hell, would like to change it to be more elegant in the future
     fileHandle1 <- openFile (fst (filesToOpen!!0) ++ ".csv") ReadMode
     contents1 <- hGetContents fileHandle1
     let cleaned1 =cleanInput contents1 
@@ -43,6 +44,7 @@ eval (SELECT whatToSelect fromStatement optWhere optOrder) = do
                                             Nothing -> afterWhere
                                             Just order -> orderStatement afterWhere order
 
+    -- SELECT
     -- Essentially afterWhere includes the select statement in its process, so if the where statement has affected the code then we don't need to select
     if (afterWhere /= afterJoin || afterOrder == "") then 
         putStrLn (afterOrder)
@@ -80,7 +82,7 @@ select contents (SelectColNumAnd colNum next) = zipCols (select contents (Select
 select contents (SelectWithAnd str next) = zipCols (select contents (SelectWith str)) (select contents next)
 select contents (SelectMergeAnd select1 select2 next) = zipCols (select contents (SelectMerge select1 select2)) (select contents next)
 
-
+-- Handles all things where statements
 whereStatement :: String -> Condition -> SelectList -> String
 -- The case when and (intersections)
 whereStatement contents (CandC c1 c2) whatToSelect = result
@@ -106,6 +108,7 @@ whereStatement contents cond whatToSelect = result
         result | cleaned /= "" = joinWith '\n' [select row whatToSelect | row <- splitN]
                       | otherwise = ""
 
+-- Helper func that zips cols together (Example: zipCols:  "1\n2\n3" "4\n5\n6" = "1,4\n2,5\n3,6")
 zipCols :: String -> String -> String
 zipCols col1 col2 = result
     where
@@ -115,6 +118,7 @@ zipCols col1 col2 = result
         result = joinWith '\n' needsJoining
 
 -- Returns list of row nums that match
+-- Used in where statements to convert the data types specified by grammar into actual operations
 getMatchingRowNums :: String -> Condition -> [Int]
 getMatchingRowNums contents (Equals v1 v2) =getMatchingRowNumsTwoRows contents (==) v1 v2
 getMatchingRowNums contents (NotEquals v1 v2) = getMatchingRowNumsTwoRows contents (/=) v1 v2
@@ -155,6 +159,7 @@ getMatchingRowNumsOneRow contents op v1 str = result v1 str
         result (RowNum n) str = keepStringThis op (splitBy ',' (getRowFrom contents n)) str
         result (ColNum n) str = keepStringThis op (splitBy '\n' (getColFrom contents n)) str
 
+-- Gets the intersections of two contents
 intersection :: String -> String -> String 
 intersection c1 c2 = result 
     where
@@ -162,6 +167,7 @@ intersection c1 c2 = result
         c2Split = splitBy '\n' c2
         result = joinWith '\n' [str | str <- c1Split, str `elem` c2Split]
 
+-- Gets tthe union of two contents (use Eval.union when calling as Data.List has a union also)
 union :: String -> String -> String
 union c1 c2 = result
     where
@@ -169,6 +175,7 @@ union c1 c2 = result
         c2Split = splitBy '\n' c2
         result = joinWith '\n' (c1Split ++ [x | x <- c2Split, not (x `elem`c1Split)]) -- Do union and join back up 
 
+-- All things join statements
 joinStatement :: (Maybe JoinStatement) -> String -> String -> String
 joinStatement (Just (CrossJoin _)) content1 content2 =cartesianProduct content1 content2
 joinStatement (Just (InnerJoinOn _ cond)) content1 content2 = output
@@ -188,6 +195,8 @@ joinStatement (Just (InnerJoinOn _ cond)) content1 content2 = output
         addTable2 = joinRows table1CorrectSplit (splitBy '\n' content2)
         output = joinWith '\n' addTable2
 
+-- Does what the merge commands should do
+-- MERGES TWO COLUMNS ONLY CAN'T MERGE ROWS
 merge :: String -> RowOrCol -> RowOrCol -> String
 merge contents select1 select2 = output
     where
@@ -200,10 +209,13 @@ merge contents select1 select2 = output
         merged = mergeStrings (splitBy '\n' selected1) (splitBy '\n' selected2)
         output = joinWith '\n' merged
         
-
+-- Unpacks the join condition so that tableRefs are easily acquired
 unpackJoinCond :: Condition -> [(String, RowOrCol)]
 unpackJoinCond (Equals (RefColNum tableRef colNum) (RefColNum tableRef2 colNum2)) = [(tableRef, (ColNum colNum)), (tableRef2, (ColNum colNum2))]
+
 --                                                                                          || HELPER FUNCS ||
+
+-- Note: Use splitBy / joinWith to dismantle and put strings back together 
 
 -- What to split with, what is getting split, the split
 splitBy :: Char -> String -> [String]
@@ -214,11 +226,13 @@ splitBy c s = splitByHelper c s "" []
         splitByHelper c (x:xs) acc result | x ==c = splitByHelper c xs "" (result ++ [acc])
                                                                          | otherwise = splitByHelper c xs (acc ++ [x]) result
 
+-- Joins up a list of strings with a char in the way
 joinWith :: Char -> [String] -> String
 joinWith _ [] = ""
 joinWith _ [x] = x
 joinWith c (x:xs) = x ++ [c] ++ joinWith c xs
 
+-- Transposes a list of rows
 swapRowAndCol :: [String] -> [String]
 swapRowAndCol input = joined
     where 
@@ -226,6 +240,7 @@ swapRowAndCol input = joined
         transposed = transpose splitUp
         joined = map (joinWith '\n') transposed
 
+-- Helper func for unpacking RowOrCol data type
 getIntFromRowOrCol :: RowOrCol -> Int
 getIntFromRowOrCol (RowNum n) = n
 getIntFromRowOrCol (ColNum n) = n
@@ -238,15 +253,19 @@ getRowFrom contents rowNum = (splitBy '\n' contents)!!rowNum
 getColFrom :: String -> Int -> String
 getColFrom contents colNum = (swapRowAndCol((splitBy '\n' contents)))!!colNum
 
+-- Gets the number of rows
 getRowNums :: String -> Int
 getRowNums contents = length (splitBy '\n' contents)
 
+-- Do op given to the 2 rows given. Keep those which meet op (op = operation), returns the row nums that match
+-- Example: keepThis (==) ["1,2,3", "4,5,6"] [",,", "4,5,6"] = [1]
 keepThis :: (String -> String -> Bool) -> [String] -> [String] -> [Int]
 keepThis op xs ys = matched
     where
         zipped = zip xs ys
         matched = [i | (i, (x,y)) <- zip [0..] zipped, (op x y)]
 
+-- Does the same as keepThis but instead of comparing two lists of
 keepStringThis :: (String -> String -> Bool) -> [String] -> String -> [Int]
 keepStringThis op xs str = removeMaybe
     where
@@ -262,21 +281,25 @@ orderStatement contents (DSC) = result
         splited = splitBy '\n' contents
         result = joinWith '\n' (reverse (sort splited))
         
+-- I don't know where I use this, i apologise
 joinRows :: [String] -> [String] -> [String]
 joinRows [] _ = []
 joinRows _ [] = []
 joinRows (x:xs) (y:ys) = (x ++ "," ++ y) : joinRows xs ys
 
+-- Takes the left-hand given input (x), however if x == "" then it will take right-hand input (y)
 mergeStrings :: [String] -> [String] -> [String]
 mergeStrings [] _ = []
 mergeStrings _ [] = []
 mergeStrings (x:xs) (y:ys) | x =="" = y : (mergeStrings xs ys)
                                                   | otherwise = x : (mergeStrings xs ys)
 
+-- Turns RowOrCol into their respective SelectList
 unpackRowOrCol :: RowOrCol -> SelectList
 unpackRowOrCol (RowNum n) = (SelectRowNum n)
 unpackRowOrCol (ColNum n) = (SelectColNum n)
 
+-- Does it exist?
 isJust :: Maybe a -> Bool
 isJust (Nothing) = False
 isJust _ = True
@@ -287,6 +310,7 @@ getNumRows [] =0
 getNumRows (x:xs) | x == '\n' = 1 + getNumRows xs
                                     | otherwise = getNumRows xs
 
+-- Turns list of instructions into one big one
 mergeInstructionList :: [SelectList] -> SelectList
 mergeInstructionList [] = SelectNull
 mergeInstructionList ((SelectColNum n):[]) = (SelectColNum n)
@@ -294,16 +318,19 @@ mergeInstructionList ((SelectColNum n):rest) = (SelectColNumAnd n (mergeInstruct
 mergeInstructionList ((SelectRowNum n):[]) = (SelectRowNum n)
 mergeInstructionList ((SelectRowNum n):rest) = (SelectRowNumAnd n (mergeInstructionList rest)) 
 
+-- Turns an array of indexes and turns into a select statement data type
 intArrayToRowNums :: [Int] -> SelectList
 intArrayToRowNums [] = SelectNull
 intArrayToRowNums (n:[]) = SelectRowNum n
 intArrayToRowNums (n:ns) = SelectRowNumAnd n (intArrayToRowNums ns) 
 
+-- Same as above but for cols
 intArrayToColNums :: [Int] -> SelectList
 intArrayToColNums [] = SelectNull
 intArrayToColNums (n:[]) = SelectColNum n
 intArrayToColNums (n:ns) = SelectColNumAnd n (intArrayToColNums ns)
 
+-- Used in CROSS JOIN
 cartesianProduct :: String -> String -> String
 cartesianProduct content1 content2 = result
     where
@@ -312,9 +339,11 @@ cartesianProduct content1 content2 = result
         cartProduct = [rowI ++ rowJ | rowI <- splitUp1, rowJ <- splitUp2]
         result = unbreak cartProduct    -- Put back together
 
+-- [Rows: [Cols]]
 breakInput :: String -> [[String]]
 breakInput input = map (splitBy ',') (splitBy '\n' input)
 
+-- Undoes above
 unbreak :: [[String]] -> String
 unbreak input = joinWith '\n' (map (joinWith ',') input)
 
@@ -324,6 +353,7 @@ trim :: String -> String
 trim = f . f
     where f = reverse . dropWhile isSpace
 
+-- Removes any whitespaces or other weird things
 cleanInput :: String -> String
 cleanInput input = result
     where
