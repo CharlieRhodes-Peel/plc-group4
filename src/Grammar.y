@@ -56,6 +56,8 @@ import Tokens
     ">="          { TokenMoreThanOrEqualTo _}
     '<'             { TokenLessThan _}
     "<="        { TokenLessThanOrEqualTo _}
+    "||"            { TokenOr _}
+    "&&"          { TokenAnd _}
     ','          { TokenComma _}
     ';'          { TokenSemiColon _}
     '('         {  TokenLParen _}
@@ -124,7 +126,8 @@ OptOrderBy : {- empty -}            {Nothing}
                         | ORDER BY Order  {Just $3}
 
 -- Done in where statements
-Condition : Condition ',' Condition                             {CandC $1 $3}
+Condition : Condition "&&" Condition                             {CandC $1 $3}
+                   | Condition "||" Condition                               {CorC $1 $3}
                    | RowOrCol "==" RowOrCol                    {Equals $1 $3}
                    | RowOrCol "==" var                                 {EqualTo $1 $3}
                    | RowOrCol "==" int                                     {EqualToNum $1 $3}
@@ -192,6 +195,7 @@ data Order = ASC | DSC
     deriving (Show)
 
 data Condition =CandC Condition Condition
+                                | CorC Condition Condition
 
                                 | Equals RowOrCol RowOrCol
                                 | EqualTo RowOrCol String

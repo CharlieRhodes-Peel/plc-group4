@@ -82,12 +82,19 @@ select contents (SelectMergeAnd select1 select2 next) = zipCols (select contents
 
 
 whereStatement :: String -> Condition -> SelectList -> String
--- The case when there are multiple
+-- The case when and (intersections)
 whereStatement contents (CandC c1 c2) whatToSelect = result
     where
         content1 = whereStatement contents c1 whatToSelect
         content2 = whereStatement contents c2 whatToSelect
-        result = keepMatching content1 content2
+        result = intersection content1 content2
+
+--The case when or (union)
+whereStatement contents (CorC c1 c2) whatToSelect = result
+    where
+        content1 = whereStatement contents c1 whatToSelect
+        content2 = whereStatement contents c2 whatToSelect
+        result = Eval.union content1 content2
 
 -- Singluar where statement case
 whereStatement contents cond whatToSelect = result
@@ -148,13 +155,19 @@ getMatchingRowNumsOneRow contents op v1 str = result v1 str
         result (RowNum n) str = keepStringThis op (splitBy ',' (getRowFrom contents n)) str
         result (ColNum n) str = keepStringThis op (splitBy '\n' (getColFrom contents n)) str
 
-keepMatching :: String -> String -> String 
-keepMatching c1 c2 = result 
+intersection :: String -> String -> String 
+intersection c1 c2 = result 
     where
         c1Split = splitBy '\n' c1
         c2Split = splitBy '\n' c2
         result = joinWith '\n' [str | str <- c1Split, str `elem` c2Split]
-        
+
+union :: String -> String -> String
+union c1 c2 = result
+    where
+        c1Split = splitBy '\n' c1
+        c2Split = splitBy '\n' c2
+        result = joinWith '\n' (c1Split ++ [x | x <- c2Split, not (x `elem`c1Split)]) -- Do union and join back up 
 
 joinStatement :: (Maybe JoinStatement) -> String -> String -> String
 joinStatement (Just (CrossJoin _)) content1 content2 =cartesianProduct content1 content2
