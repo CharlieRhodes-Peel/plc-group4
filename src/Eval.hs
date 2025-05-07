@@ -11,7 +11,6 @@ import Text.Read (readMaybe)
 -- Reads the file from tableRef into "contents"
 -- Select With Nothing Else
 eval :: SelectStatement -> IO ()
-
 eval (SELECT whatToSelect fromStatement optWhere optOrder) = do
     --Open First files
     let filesToOpen = unpackFrom fromStatement
@@ -22,15 +21,9 @@ eval (SELECT whatToSelect fromStatement optWhere optOrder) = do
     let cleaned1 =cleanInput contents1 
 
     -- JOINS
-    (afterJoin, fileHandle2) <- if (length filesToOpen > 1)
-        then do
-            let join = (filesToOpen!!1)
-            fileHandle2 <- openFile (fst join ++ ".csv") ReadMode
-            contents2 <- hGetContents fileHandle2
-            let cleanedJoin = cleanInput contents2
-            let joinType = snd join
-            let result = joinStatement joinType cleaned1 cleanedJoin
-            return (result, Just fileHandle2)
+    (afterJoin, Just handles) <- if (length filesToOpen > 1)
+        then
+            doAllJoins cleaned1 (tail filesToOpen) [] -- Tails cos need to get rid of the first one that we've already done
         else do
             return (cleaned1, Nothing)
     
@@ -54,16 +47,39 @@ eval (SELECT whatToSelect fromStatement optWhere optOrder) = do
 
     -- Cleanup
     hClose fileHandle1
-    case fileHandle2 of
-        Just handle -> hClose handle
-        Nothing -> return ()
+    mapM_ hClose handles
 
 -- Gets a list of all the filenames and what their join type is!
 unpackFrom :: FromList -> [(String, Maybe JoinStatement)]
 unpackFrom (SingleFrom (SimpleTableRef tableRef)) = [(tableRef, Nothing)]
-unpackFrom (OptJoin (SimpleTableRef tableRef) (Just (CrossJoin tableRef2))) = [(tableRef, Nothing), (tableRef2, Just (CrossJoin tableRef2))]
 unpackFrom (OptJoin (SimpleTableRef tableRef) Nothing) = [(tableRef, Nothing)]
-unpackFrom (OptJoin (SimpleTableRef tableRef) (Just (InnerJoinOn tableRef2 cond))) = [(tableRef, Nothing), (tableRef2, Just (InnerJoinOn tableRef2 cond))]
+unpackFrom (OptJoin (SimpleTableRef tableRef) (Just joinStatement)) = [(tableRef, Nothing)] ++ map unpackJoin (listJoins joinStatement)
+
+listJoins :: JoinStatement -> [Maybe JoinStatement]
+listJoins (JoinThenJoin join1 join2) = listJoins join1 ++ listJoins join2 
+listJoins anythingElse =[Just anythingElse]
+
+unpackJoin :: Maybe JoinStatement -> (String, Maybe JoinStatement)
+unpackJoin join@(Just (CrossJoin tableRef)) = (tableRef, join)
+unpackJoin join@(Just (InnerJoinOn tableRef _)) = (tableRef, join)
+
+-- Yet another piece of code I scarely know how it works, you know when you write stuff in the flow state? Well I'm out of it now and can't help you (sorry!)
+doAllJoins :: String -> [(String, Maybe JoinStatement)] -> [Handle] -> IO (String, Maybe [Handle])
+doAllJoins prevContent ((fileName, joinType):[]) handleAcc = do --When we're on the last join
+    fileHandle <- openFile (fileName ++ ".csv") ReadMode
+    contents <- hGetContents fileHandle
+    let cleanedJoin = cleanInput contents
+    let result = joinStatement joinType prevContent cleanedJoin
+    return (result, Just (handleAcc ++ [fileHandle]))
+
+doAllJoins prevContent ((fileName, joinType):rest) handleAcc =do --If there's still more joins to go then keep going!
+    fileHandle <- openFile (fileName ++ ".csv") ReadMode
+    contents <- hGetContents fileHandle
+    let cleanedJoin = cleanInput contents
+    let result = joinStatement joinType prevContent cleanedJoin 
+
+    allJoins <- doAllJoins result rest (handleAcc ++ [fileHandle])
+    return (allJoins)
 
 
 -- File contents, what to select, outputs what is needed
@@ -159,24 +175,9 @@ getMatchingRowNumsOneRow contents op v1 str = result v1 str
         result (RowNum n) str = keepStringThis op (splitBy ',' (getRowFrom contents n)) str
         result (ColNum n) str = keepStringThis op (splitBy '\n' (getColFrom contents n)) str
 
--- Gets the intersections of two contents
-intersection :: String -> String -> String 
-intersection c1 c2 = result 
-    where
-        c1Split = splitBy '\n' c1
-        c2Split = splitBy '\n' c2
-        result = joinWith '\n' [str | str <- c1Split, str `elem` c2Split]
-
--- Gets tthe union of two contents (use Eval.union when calling as Data.List has a union also)
-union :: String -> String -> String
-union c1 c2 = result
-    where
-        c1Split = splitBy '\n' c1
-        c2Split = splitBy '\n' c2
-        result = joinWith '\n' (c1Split ++ [x | x <- c2Split, not (x `elem`c1Split)]) -- Do union and join back up 
-
 -- All things join statements
-joinStatement :: (Maybe JoinStatement) -> String -> String -> String
+-- Join statement put last so I can map it across multiple
+joinStatement ::  (Maybe JoinStatement) -> String -> String -> String
 joinStatement (Just (CrossJoin _)) content1 content2 =cartesianProduct content1 content2
 joinStatement (Just (InnerJoinOn _ cond)) content1 content2 = output
     where
@@ -287,6 +288,23 @@ joinRows [] _ = []
 joinRows _ [] = []
 joinRows (x:xs) (y:ys) = (x ++ "," ++ y) : joinRows xs ys
 
+-- Gets the intersections of two contents
+intersection :: String -> String -> String 
+intersection c1 c2 = result 
+    where
+        c1Split = splitBy '\n' c1
+        c2Split = splitBy '\n' c2
+        result = joinWith '\n' [str | str <- c1Split, str `elem` c2Split]
+
+-- Gets tthe union of two contents (use Eval.union when calling as Data.List has a union also)
+union :: String -> String -> String
+union c1 c2 = result
+    where
+        c1Split = splitBy '\n' c1
+        c2Split = splitBy '\n' c2
+        result = joinWith '\n' (c1Split ++ [x | x <- c2Split, not (x `elem`c1Split)]) -- Do union and join back up 
+
+
 -- Takes the left-hand given input (x), however if x == "" then it will take right-hand input (y)
 mergeStrings :: [String] -> [String] -> [String]
 mergeStrings [] _ = []
@@ -313,10 +331,11 @@ getNumRows (x:xs) | x == '\n' = 1 + getNumRows xs
 -- Turns list of instructions into one big one
 mergeInstructionList :: [SelectList] -> SelectList
 mergeInstructionList [] = SelectNull
-mergeInstructionList ((SelectColNum n):[]) = (SelectColNum n)
 mergeInstructionList ((SelectColNum n):rest) = (SelectColNumAnd n (mergeInstructionList rest)) 
-mergeInstructionList ((SelectRowNum n):[]) = (SelectRowNum n)
 mergeInstructionList ((SelectRowNum n):rest) = (SelectRowNumAnd n (mergeInstructionList rest)) 
+mergeInstructionList ((SelectRowNumAnd n more):rest) = (SelectRowNumAnd n (mergeInstructionList ([more] ++ rest)))
+mergeInstructionList ((SelectColNumAnd n more):rest) = (SelectRowNumAnd n (mergeInstructionList ([more] ++ rest)))
+mergeInstructionList (this:[]) = this
 
 -- Turns an array of indexes and turns into a select statement data type
 intArrayToRowNums :: [Int] -> SelectList
