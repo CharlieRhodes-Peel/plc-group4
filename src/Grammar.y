@@ -124,7 +124,8 @@ OptOrderBy : {- empty -}            {Nothing}
                         | ORDER BY Order  {Just $3}
 
 -- Done in where statements
-Condition : RowOrCol "==" RowOrCol                    {Equals $1 $3}
+Condition : Condition ',' Condition                             {CandC $1 $3}
+                   | RowOrCol "==" RowOrCol                    {Equals $1 $3}
                    | RowOrCol "==" var                                 {EqualTo $1 $3}
                    | RowOrCol "==" int                                     {EqualToNum $1 $3}
                    | RowOrCol "==" NULL                                 {EqualToNull $1}
@@ -190,7 +191,9 @@ data WhereStatement = WHERE Condition
 data Order = ASC | DSC
     deriving (Show)
 
-data Condition = Equals RowOrCol RowOrCol
+data Condition =CandC Condition Condition
+
+                                | Equals RowOrCol RowOrCol
                                 | EqualTo RowOrCol String
                                 | EqualToNum RowOrCol Int
                                 | EqualToNull RowOrCol

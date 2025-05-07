@@ -6,6 +6,7 @@ import System.IO
 import Data.List
 import Data.Text (unpack, pack, strip)
 import Data.Char (isSpace)
+import Text.Read (readMaybe)
 
 -- Reads the file from tableRef into "contents"
 -- Select With Nothing Else
@@ -43,7 +44,7 @@ eval (SELECT whatToSelect fromStatement optWhere optOrder) = do
                                             Just order -> orderStatement afterWhere order
 
     -- Essentially afterWhere includes the select statement in its process, so if the where statement has affected the code then we don't need to select
-    if (afterWhere /= afterJoin) then 
+    if (afterWhere /= afterJoin || afterOrder == "") then 
         putStrLn (afterOrder)
     else
         let finalOutput = select afterOrder whatToSelect
@@ -81,13 +82,22 @@ select contents (SelectMergeAnd select1 select2 next) = zipCols (select contents
 
 
 whereStatement :: String -> Condition -> SelectList -> String
+-- The case when there are multiple
+whereStatement contents (CandC c1 c2) whatToSelect = result
+    where
+        content1 = whereStatement contents c1 whatToSelect
+        content2 = whereStatement contents c2 whatToSelect
+        result = keepMatching content1 content2
+
+-- Singluar where statement case
 whereStatement contents cond whatToSelect = result
     where
         matchingRowNums = getMatchingRowNums contents cond
         wheredContents = select contents (intArrayToRowNums matchingRowNums)
         cleaned = cleanInput wheredContents
         splitN = splitBy '\n' cleaned
-        result = joinWith '\n' [select row whatToSelect | row <- splitN]
+        result | cleaned /= "" = joinWith '\n' [select row whatToSelect | row <- splitN]
+                      | otherwise = ""
 
 zipCols :: String -> String -> String
 zipCols col1 col2 = result
@@ -96,7 +106,6 @@ zipCols col1 col2 = result
         broken2 = splitBy '\n' col2
         needsJoining = [l ++ "," ++ r | (l, r) <- (zip broken1 broken2)] 
         result = joinWith '\n' needsJoining
-
 
 -- Returns list of row nums that match
 getMatchingRowNums :: String -> Condition -> [Int]
@@ -139,6 +148,13 @@ getMatchingRowNumsOneRow contents op v1 str = result v1 str
         result (RowNum n) str = keepStringThis op (splitBy ',' (getRowFrom contents n)) str
         result (ColNum n) str = keepStringThis op (splitBy '\n' (getColFrom contents n)) str
 
+keepMatching :: String -> String -> String 
+keepMatching c1 c2 = result 
+    where
+        c1Split = splitBy '\n' c1
+        c2Split = splitBy '\n' c2
+        result = joinWith '\n' [str | str <- c1Split, str `elem` c2Split]
+        
 
 joinStatement :: (Maybe JoinStatement) -> String -> String -> String
 joinStatement (Just (CrossJoin _)) content1 content2 =cartesianProduct content1 content2
