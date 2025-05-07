@@ -113,7 +113,8 @@ OptJoin :: {Maybe JoinStatement}
 OptJoin : {- empty -}                   {Nothing}
                 | JoinStatement         {Just $1}
 
-JoinStatement : CROSS JOIN var      {CrossJoin $3}
+JoinStatement : JoinStatement ',' JoinStatement {JoinThenJoin $1 $3}
+                              | CROSS JOIN var                              {CrossJoin $3}
                               | INNER JOIN var ON Condition       {InnerJoinOn $3 $5}
                               | OUTER JOIN var ON Condition       {OuterJoinOn $3 $5}
 
@@ -184,7 +185,8 @@ data SelectList = SelectAll | SelectNull
 data FromList = SingleFrom TableRef | OptJoin TableRef (Maybe JoinStatement)
     deriving (Show)
 
-data JoinStatement = CrossJoin String | InnerJoinOn String Condition | OuterJoinOn String Condition
+data JoinStatement = JoinThenJoin JoinStatement JoinStatement 
+                                        | CrossJoin String | InnerJoinOn String Condition | OuterJoinOn String Condition
     deriving (Show)
 
 data RowOrCol = RowNum Int | ColNum Int
