@@ -11,7 +11,8 @@ import Text.Read (readMaybe)
 -- Reads the file from tableRef into "contents"
 -- Select With Nothing Else
 eval :: SelectStatement -> IO ()
-eval (SELECT whatToSelect fromStatement optWhere optOrder) = do
+
+eval (SELECT whatToSelect fromStatement optWhere optOrder optOutput) = do
     --Open First files
     let filesToOpen = unpackFrom fromStatement
 
@@ -50,6 +51,17 @@ eval (SELECT whatToSelect fromStatement optWhere optOrder) = do
     -- Cleanup
     hClose fileHandle1
     mapM_ hClose handles
+
+    case optOutput of
+        Just output -> createOutputFile output (select afterOrder whatToSelect)
+        Nothing -> return ()
+
+createOutputFile :: OutputDetails -> String -> IO()
+createOutputFile (OutputFilename name) output = do 
+                                    let filename = name ++ ".csv"
+                                    writeFile filename output
+                                
+
 
 -- Gets a list of all the filenames and what their join type is!
 unpackFrom :: FromList -> [(String, Maybe JoinStatement)]

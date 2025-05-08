@@ -76,7 +76,7 @@ import Tokens
 Statement : SelectStatement ';'             {$1}
 
 -- SELECT STUFF
-SelectStatement : SELECT SelectList FROM FromList OptWhere OptOrderBy {SELECT $2 $4 $5 $6}
+SelectStatement : SELECT SelectList FROM FromList OptWhere OptOrderBy OptOutput{SELECT $2 $4 $5 $6 $7}
 
 SelectList : '*'                                    { SelectAll }
                       | var ',' SelectList       { SelectRowAnd $1 $3}
@@ -122,6 +122,10 @@ OptWhere :: { Maybe Condition }
 OptWhere : {- empty -}                {Nothing} 
                    | WHERE Condition      {Just $2}
 
+OptOutput :: {Maybe OutputDetails}
+OptOutput : {- empty -}           {Nothing}
+                    | INTO OutputDetails {Just $2}
+
 OptOrderBy :: { Maybe Order}
 OptOrderBy : {- empty -}            {Nothing}
                         | ORDER BY Order  {Just $3}
@@ -153,6 +157,8 @@ Condition : Condition "&&" Condition                             {CandC $1 $3}
 Order : ASC                                 {ASC}
              | DSC                                 {DSC}
 
+OutputDetails : var             {OutputFilename $1}
+
 {
 -- Taken from the labs 
 parseError :: [Token] -> a
@@ -161,7 +167,7 @@ parseError (e:rest) = error ("Parse error at (line:column) " ++ tokenPosn (e))
 parseError _ = error "Parse error"
 
 --SELECT STUFF
-data SelectStatement  = SELECT SelectList FromList (Maybe Condition) (Maybe Order)
+data SelectStatement  = SELECT SelectList FromList (Maybe Condition) (Maybe Order) (Maybe OutputDetails)
     deriving (Show)
 
 data SelectList = SelectAll | SelectNull
@@ -194,6 +200,9 @@ data WhereStatement = WHERE Condition
     deriving (Show)
 
 data Order = ASC | DSC
+    deriving (Show)
+
+data OutputDetails = OutputFilename String
     deriving (Show)
 
 data Condition =CandC Condition Condition
