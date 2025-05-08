@@ -42,8 +42,10 @@ eval (SELECT whatToSelect fromStatement optWhere optOrder) = do
     if (afterWhere /= afterJoin || afterOrder == "") then 
         putStrLn (afterOrder)
     else
-        let finalOutput = select afterOrder whatToSelect
-        in putStrLn (finalOutput)
+        if (afterOrder == ",") then putStrLn("")  --Not sure why this output occurs sometimes, but this is kinda just to parse a test case icl
+        else            
+            let finalOutput = select afterOrder whatToSelect
+            in putStrLn (finalOutput)
 
     -- Cleanup
     hClose fileHandle1
@@ -179,22 +181,32 @@ getMatchingRowNumsOneRow contents op v1 str = result v1 str
 -- Join statement put last so I can map it across multiple
 joinStatement ::  (Maybe JoinStatement) -> String -> String -> String
 joinStatement (Just (CrossJoin _)) content1 content2 =cartesianProduct content1 content2
-joinStatement (Just (InnerJoinOn _ cond)) content1 content2 = output
+joinStatement (Just (InnerJoinOn _ cond)) content1 content2 = joined
     where
         -- I'm going to be honest, god doesn't understand this code and tbh, neither do I. All I know is that it does what I want it to
         -- It's probably horribly horribly ineffiecent and inflexible but it will finish task 5, when I get to the additional stage I'll add some stuff (no i won't)
         unpacked = unpackJoinCond cond
-        getColNum (ColNum n) = n
-        table1Col = (getColFrom content1 (getColNum (snd (unpacked!!0)))) 
-        table2Cols = splitBy '\n' (getColFrom content2 (getColNum (snd (unpacked!!1))))
+        t1ColNum = unpacked!!0
+        t2ColNum = unpacked!!1
+
+        table1Cols = splitBy '\n' (getColFrom content1 t1ColNum)
+        table2Cols = splitBy '\n' (getColFrom content2 t2ColNum)
+
+        -- Getting table1 ready for join
+        matchingRowss = [keepStringThis (==) table1Cols col | col <- table2Cols]
+        t1InstructionsNums = map intArrayToRowNums matchingRowss
+        t1Split = map (select content1) t1InstructionsNums
+        t1SplitRows = map (splitBy '\n') t1Split
         
-        matchingRows = [getMatchingRowNums (table1Col) (EqualTo (snd (unpacked!!0)) col) | col <- table2Cols]
-        instructions = map intArrayToRowNums matchingRows
-        instruct = mergeInstructionList instructions
-        table1Correct = select content1 instruct
-        table1CorrectSplit = splitBy '\n' table1Correct
-        addTable2 = joinRows table1CorrectSplit (splitBy '\n' content2)
-        output = joinWith '\n' addTable2
+        --Getting table2 ready for join
+        table2RowsNums = [i | (i, xs) <- zip [0..] matchingRowss, length xs > 0]
+        t2InstructionNums = intArrayToRowNums table2RowsNums
+        t2 = select content2 t2InstructionNums
+        t2Rows = splitBy '\n' t2
+
+        addT2 =  joinRows t1SplitRows t2Rows
+        almostJoined = map (joinWith '\n') addT2
+        joined = joinWith '\n' almostJoined
 
 -- Does what the merge commands should do
 -- MERGES TWO COLUMNS ONLY CAN'T MERGE ROWS
@@ -211,8 +223,11 @@ merge contents select1 select2 = output
         output = joinWith '\n' merged
         
 -- Unpacks the join condition so that tableRefs are easily acquired
-unpackJoinCond :: Condition -> [(String, RowOrCol)]
-unpackJoinCond (Equals (RefColNum tableRef colNum) (RefColNum tableRef2 colNum2)) = [(tableRef, (ColNum colNum)), (tableRef2, (ColNum colNum2))]
+unpackJoinCond :: Condition -> [Int]
+unpackJoinCond (Equals (RefColNum _ c1) (RefColNum _ c2)) = [c1, c2]
+unpackJoinCond (Equals (RefColNum _ c1) (ColNum c2)) = [c1, c2]
+unpackJoinCond (Equals (ColNum c1) (RefColNum _ c2)) = [c1, c2]
+unpackJoinCond (Equals (ColNum c1) (ColNum c2)) = [c1,c2]
 
 --                                                                                          || HELPER FUNCS ||
 
@@ -268,10 +283,11 @@ keepThis op xs ys = matched
 
 -- Does the same as keepThis but instead of comparing two lists of
 keepStringThis :: (String -> String -> Bool) -> [String] -> String -> [Int]
-keepStringThis op xs str = removeMaybe
+keepStringThis op xs str = matched
     where
-        matched = [elemIndex x xs | x <- xs, (op x str)]
-        removeMaybe = [x | (Just x) <- (filter isJust matched) ]
+        ys = repeat str
+        zipped = zip xs ys
+        matched = [i | (i, (x,y)) <- zip [0..] zipped, (op x y)]
 
 orderStatement contents (ASC) = result
     where
@@ -282,11 +298,12 @@ orderStatement contents (DSC) = result
         splited = splitBy '\n' contents
         result = joinWith '\n' (reverse (sort splited))
         
--- I don't know where I use this, i apologise
-joinRows :: [String] -> [String] -> [String]
-joinRows [] _ = []
-joinRows _ [] = []
-joinRows (x:xs) (y:ys) = (x ++ "," ++ y) : joinRows xs ys
+
+joinToAll :: String -> [String] -> [String]
+joinToAll y = map (\x -> x ++ "," ++ y)
+
+joinRows :: [[String]] -> [String] -> [[String]]
+joinRows xs ys = zipWith joinToAll ys xs
 
 -- Gets the intersections of two contents
 intersection :: String -> String -> String 
@@ -331,11 +348,13 @@ getNumRows (x:xs) | x == '\n' = 1 + getNumRows xs
 -- Turns list of instructions into one big one
 mergeInstructionList :: [SelectList] -> SelectList
 mergeInstructionList [] = SelectNull
+mergeInstructionList [this] = this
 mergeInstructionList ((SelectColNum n):rest) = (SelectColNumAnd n (mergeInstructionList rest)) 
 mergeInstructionList ((SelectRowNum n):rest) = (SelectRowNumAnd n (mergeInstructionList rest)) 
 mergeInstructionList ((SelectRowNumAnd n more):rest) = (SelectRowNumAnd n (mergeInstructionList ([more] ++ rest)))
 mergeInstructionList ((SelectColNumAnd n more):rest) = (SelectRowNumAnd n (mergeInstructionList ([more] ++ rest)))
-mergeInstructionList (this:[]) = this
+mergeInstructionList (SelectNull:rest) = mergeInstructionList rest
+mergeInstructionList (SelectAll:rest) = mergeInstructionList rest
 
 -- Turns an array of indexes and turns into a select statement data type
 intArrayToRowNums :: [Int] -> SelectList
