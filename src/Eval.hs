@@ -11,7 +11,6 @@ import Text.Read (readMaybe)
 -- Reads the file from tableRef into "contents"
 -- Select With Nothing Else
 eval :: SelectStatement -> IO ()
-
 eval (SELECT whatToSelect fromStatement optWhere optOrder optOutput) = do
     --Open First files
     let filesToOpen = unpackFrom fromStatement
@@ -22,12 +21,12 @@ eval (SELECT whatToSelect fromStatement optWhere optOrder optOutput) = do
     let cleaned1 =cleanInput contents1 
 
     -- JOINS
-    (afterJoin, Just handles) <- if (length filesToOpen > 1)
+    (afterJoin, handles) <- if (length filesToOpen > 1)
         then
             doAllJoins cleaned1 (tail filesToOpen) [] -- Tails cos need to get rid of the first one that we've already done
-        else do
+        else
             return (cleaned1, Nothing)
-    
+
     --WHERE
     let afterWhere = case optWhere of
                                             Nothing -> afterJoin
@@ -50,8 +49,11 @@ eval (SELECT whatToSelect fromStatement optWhere optOrder optOutput) = do
 
     -- Cleanup
     hClose fileHandle1
-    mapM_ hClose handles
+    case handles of
+        Just handle -> mapM_ hClose handle
+        Nothing -> return ()
 
+    -- OUTPUT
     case optOutput of
         Just output -> createOutputFile output (select afterOrder whatToSelect)
         Nothing -> return ()
@@ -382,6 +384,8 @@ intArrayToColNums (n:ns) = SelectColNumAnd n (intArrayToColNums ns)
 
 -- Used in CROSS JOIN
 cartesianProduct :: String -> String -> String
+cartesianProduct "" content2 = ""
+cartesianProduct content1 "" = content1
 cartesianProduct content1 content2 = result
     where
         splitUp1 = breakInput content1          -- Break down into [row[col]]

@@ -13,12 +13,12 @@ main = catch main' noLex
 main'  = do (fileName : _) <- getArgs
             --Lexing and Parsing
             sourceText <- readFile fileName
-            putStrLn ("Lexing: " ++ sourceText)
+--            putStrLn ("Lexing: " ++ sourceText)       --DEBUGGING
             let lexedProg = alexScanTokens sourceText
-            putStrLn ("lexed as " ++ show lexedProg)
+--            putStrLn ("lexed as " ++ show lexedProg)      --DEBUGGING
             
             let parsedSyntax = parseCalc lexedProg
-            putStrLn ("parsed as: " ++ show parsedSyntax)
+--            putStrLn ("parsed as: " ++ show parsedSyntax)     --DEBUGGING
 
             --Eval
             eval parsedSyntax
